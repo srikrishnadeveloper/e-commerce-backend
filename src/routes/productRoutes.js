@@ -7,7 +7,8 @@ const {
   getFeaturedProducts,
   getBestsellerProducts,
   searchProducts,
-  getProductStats
+  getProductStats,
+  getRelatedProducts
 } = require('../controllers/productController');
 
 // Route: GET /api/products/featured
@@ -25,6 +26,9 @@ router.get('/stats', getProductStats);
 
 // Route: GET /api/products/category/:categoryId
 router.get('/category/:categoryId', getProductsByCategory);
+
+// Route: GET /api/products/:id/related
+router.get('/:id/related', getRelatedProducts);
 
 // Route: GET /api/products/:id
 router.get('/:id', getProductById);

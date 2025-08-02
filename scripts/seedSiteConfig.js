@@ -1,99 +1,155 @@
 const mongoose = require('mongoose');
+const SiteConfig = require('../src/models/SiteConfig');
 const fs = require('fs');
 const path = require('path');
-const { connectDB } = require('../src/config/database');
-const SiteConfig = require('../src/models/SiteConfig');
 
-const seedSiteConfig = async () => {
+// Load the site configuration JSON file
+const siteConfigPath = path.join(__dirname, '../../frontend/src/data/siteConfig.json');
+const siteConfigData = JSON.parse(fs.readFileSync(siteConfigPath, 'utf8'));
+
+// Database connection
+const connectDB = async () => {
   try {
-    // Connect to database
-    await connectDB();
-    console.log('Connected to MongoDB for site config seeding');
-
-    // Read the site configuration JSON file
-    const siteConfigPath = path.join(__dirname, '../../frontend/src/data/siteConfig.json');
-    
-    if (!fs.existsSync(siteConfigPath)) {
-      console.error('Site configuration file not found:', siteConfigPath);
-      process.exit(1);
-    }
-
-    const siteConfigData = JSON.parse(fs.readFileSync(siteConfigPath, 'utf8'));
-    console.log('Loaded site configuration data');
-
-    // Clear existing site config data
-    await SiteConfig.deleteMany({});
-    console.log('Cleared existing site configuration data');
-
-    // Extract main sections from the site config
-    const configSections = [
-      {
-        key: 'branding',
-        config: siteConfigData.branding || {},
-        version: 1
-      },
-      {
-        key: 'navigation',
-        config: siteConfigData.navigation || {},
-        version: 1
-      },
-      {
-        key: 'homepage',
-        config: {
-          hero: siteConfigData.hero || {},
-          announcements: siteConfigData.announcements || {},
-          features: siteConfigData.features || {},
-          testimonials: siteConfigData.testimonials || {},
-          newsletter: siteConfigData.newsletter || {}
-        },
-        version: 1
-      },
-      {
-        key: 'footer',
-        config: siteConfigData.footer || {},
-        version: 1
-      },
-      {
-        key: 'seo',
-        config: siteConfigData.seo || {},
-        version: 1
-      },
-      {
-        key: 'main',
-        config: siteConfigData, // Store the entire config as main
-        version: 1
-      }
-    ];
-
-    // Insert site configurations
-    for (const section of configSections) {
-      if (Object.keys(section.config).length > 0) {
-        const savedConfig = await SiteConfig.create(section);
-        console.log(`✅ Created site config section: ${savedConfig.key}`);
-      }
-    }
-
-    console.log(`\n🎉 Site configuration seeding completed successfully!`);
-    console.log(`📊 Created ${configSections.filter(s => Object.keys(s.config).length > 0).length} configuration sections`);
-    
-    // Verify the data
-    const count = await SiteConfig.countDocuments();
-    console.log(`🔍 Verification: ${count} site configuration documents in database\n`);
-
+    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ecommerce');
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('❌ Error seeding site configuration:', error);
+    console.error('❌ MongoDB connection error:', error);
     process.exit(1);
-  } finally {
-    // Close the database connection
-    mongoose.connection.close();
-    console.log('Database connection closed');
-    process.exit(0);
   }
 };
 
-// Run the seeding script
+// Clean up existing configurations
+const clearExistingConfigs = async () => {
+  try {
+    await SiteConfig.deleteMany({});
+    console.log('🧹 Cleared existing site configurations');
+  } catch (error) {
+    console.error('❌ Error clearing existing configs:', error);
+  }
+};
+
+// Seed site configurations
+const seedSiteConfigs = async () => {
+  try {
+    console.log('🚀 Starting site configuration seeding...');
+
+    // Define the configuration keys and their data
+    const configs = [
+      {
+        key: 'branding',
+        config: siteConfigData.branding
+      },
+      {
+        key: 'navigation',
+        config: siteConfigData.navigation
+      },
+      {
+        key: 'homepage',
+        config: siteConfigData.homePage
+      },
+      {
+        key: 'footer',
+        config: siteConfigData.footer
+      },
+      {
+        key: 'pages',
+        config: siteConfigData.pages
+      },
+      {
+        key: 'productPages',
+        config: siteConfigData.productPages
+      },
+      {
+        key: 'company',
+        config: siteConfigData.company
+      },
+      {
+        key: 'cart',
+        config: siteConfigData.cart
+      },
+      {
+        key: 'checkout',
+        config: siteConfigData.checkout
+      },
+      {
+        key: 'errors',
+        config: siteConfigData.errors
+      },
+      {
+        key: 'loading',
+        config: siteConfigData.loading
+      },
+      {
+        key: 'accessibility',
+        config: siteConfigData.accessibility
+      },
+      {
+        key: 'seo',
+        config: siteConfigData.seo
+      },
+      {
+        key: 'announcementBar',
+        config: siteConfigData.announcementBar
+      },
+      {
+        key: 'hero',
+        config: siteConfigData.hero
+      }
+    ];
+
+    // Insert all configurations
+    const results = await SiteConfig.insertMany(configs);
+    
+    console.log(`✅ Successfully seeded ${results.length} site configurations:`);
+    results.forEach(config => {
+      console.log(`   - ${config.key} (v${config.version})`);
+    });
+
+    console.log('\n🎉 Site configuration seeding completed successfully!');
+    console.log('\n📊 Configuration Summary:');
+    console.log(`   - Total configurations: ${results.length}`);
+    console.log(`   - Database: ${mongoose.connection.name}`);
+    console.log(`   - Collection: siteconfigs`);
+    
+    // Display some sample data
+    const brandingConfig = await SiteConfig.findOne({ key: 'branding' });
+    if (brandingConfig) {
+      console.log('\n📝 Sample Configuration (Branding):');
+      console.log(`   - Company: ${brandingConfig.config.name}`);
+      console.log(`   - Tagline: ${brandingConfig.config.tagline}`);
+      console.log(`   - Logo: ${brandingConfig.config.logo.light}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error seeding site configurations:', error);
+    throw error;
+  }
+};
+
+// Main execution
+const main = async () => {
+  try {
+    await connectDB();
+    await clearExistingConfigs();
+    await seedSiteConfigs();
+    
+    console.log('\n✨ All done! Your site configuration is ready.');
+    console.log('\n🔗 API Endpoints:');
+    console.log('   - GET /api/siteconfig (all configs)');
+    console.log('   - GET /api/siteconfig/branding (specific config)');
+    console.log('   - POST /api/siteconfig (create/update)');
+    console.log('   - DELETE /api/siteconfig/branding (delete)');
+    
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Seeding failed:', error);
+    process.exit(1);
+  }
+};
+
+// Run if called directly
 if (require.main === module) {
-  seedSiteConfig();
+  main();
 }
 
-module.exports = seedSiteConfig;
+module.exports = { seedSiteConfigs };

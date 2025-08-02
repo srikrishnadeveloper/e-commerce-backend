@@ -276,13 +276,6 @@ const getProductStats = async (req, res) => {
     const featuredProducts = await Product.countDocuments({ featured: true });
     const bestsellerProducts = await Product.countDocuments({ bestseller: true });
     const inStockProducts = await Product.countDocuments({ inStock: true });
-    const outOfStockProducts = await Product.countDocuments({ inStock: false });
-
-    // Get category statistics
-    const categoryStats = await Product.aggregate([
-      { $group: { _id: '$categoryId', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
 
     res.json({
       success: true,
@@ -290,16 +283,54 @@ const getProductStats = async (req, res) => {
         totalProducts,
         featuredProducts,
         bestsellerProducts,
-        inStockProducts,
-        outOfStockProducts,
-        categoryStats
+        inStockProducts
       }
     });
   } catch (error) {
-    console.error('Error fetching product statistics:', error);
+    console.error('Error fetching product stats:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching product statistics',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get related products for a specific product
+// @route   GET /api/products/:id/related
+// @access  Public
+const getRelatedProducts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 4 } = req.query;
+
+    // Get the current product to find its category
+    const currentProduct = await Product.findById(id);
+    
+    if (!currentProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    // Find related products from the same category, excluding the current product
+    const relatedProducts = await Product.find({
+      categoryId: currentProduct.categoryId,
+      _id: { $ne: id } // Exclude current product
+    })
+    .limit(parseInt(limit))
+    .sort({ featured: -1, bestseller: -1, createdAt: -1 }); // Prioritize featured and bestseller products
+
+    res.json({
+      success: true,
+      data: relatedProducts
+    });
+  } catch (error) {
+    console.error('Error fetching related products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching related products',
       error: error.message
     });
   }
@@ -312,5 +343,6 @@ module.exports = {
   getFeaturedProducts,
   getBestsellerProducts,
   searchProducts,
-  getProductStats
+  getProductStats,
+  getRelatedProducts
 };

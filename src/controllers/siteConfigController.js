@@ -79,7 +79,7 @@ const upsertSiteConfig = async (req, res) => {
     const configKey = key.toLowerCase();
     
     // Check if key is valid
-    const validKeys = ['branding', 'navigation', 'homepage', 'footer', 'seo', 'main'];
+    const validKeys = ['branding', 'navigation', 'homepage', 'footer', 'seo', 'main', 'announcementbar'];
     if (!validKeys.includes(configKey)) {
       return res.status(400).json({
         success: false,

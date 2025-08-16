@@ -5,7 +5,7 @@ const SiteConfigSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['branding', 'navigation', 'homepage', 'footer', 'seo', 'main']
+    enum: ['all', 'branding', 'navigation', 'homepage', 'footer', 'seo', 'main', 'announcementbar', 'hero', 'company']
   },
   config: {
     type: mongoose.Schema.Types.Mixed, // Allows any JSON structure
@@ -25,7 +25,6 @@ const SiteConfigSchema = new mongoose.Schema({
 });
 
 // Indexes
-SiteConfigSchema.index({ key: 1 });
 SiteConfigSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('SiteConfig', SiteConfigSchema);

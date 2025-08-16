@@ -7,49 +7,38 @@ const SiteConfig = require('../models/SiteConfig');
 const getSiteConfig = async (req, res) => {
   try {
     const { key } = req.params;
-    
+
+    // Prefer consolidated document under key 'all' if available
+    const consolidated = await SiteConfig.findOne({ key: 'all', isActive: true });
+
     if (key) {
-      // Get specific config by key
-      const config = await SiteConfig.findOne({ 
-        key: key.toLowerCase(), 
-        isActive: true 
-      });
-      
-      if (!config) {
-        return res.status(404).json({
-          success: false,
-          message: `Site configuration '${key}' not found`
-        });
+      if (consolidated) {
+        const section = consolidated.config?.[key.toLowerCase()];
+        if (section === undefined) {
+          return res.status(404).json({ success: false, message: `Site configuration '${key}' not found` });
+        }
+        return res.status(200).json({ success: true, data: section, version: consolidated.version, lastUpdated: consolidated.updatedAt });
       }
-      
-      return res.status(200).json({
-        success: true,
-        data: config.config,
-        version: config.version,
-        lastUpdated: config.updatedAt
-      });
+
+      // Legacy per-key documents fallback
+      const config = await SiteConfig.findOne({ key: key.toLowerCase(), isActive: true });
+      if (!config) {
+        return res.status(404).json({ success: false, message: `Site configuration '${key}' not found` });
+      }
+      return res.status(200).json({ success: true, data: config.config, version: config.version, lastUpdated: config.updatedAt });
     }
-    
-    // Get all active configurations
-    const configs = await SiteConfig.find({ isActive: true })
-      .select('key config version updatedAt')
-      .sort({ key: 1 });
-    
-    // Transform to key-value pairs
+
+    if (consolidated) {
+      return res.status(200).json({ success: true, data: consolidated.config, version: consolidated.version, lastUpdated: consolidated.updatedAt });
+    }
+
+    // Build map from multiple docs (legacy mode)
+    const configs = await SiteConfig.find({ isActive: true }).select('key config version updatedAt').sort({ key: 1 });
     const configMap = {};
-    configs.forEach(config => {
-      configMap[config.key] = {
-        data: config.config,
-        version: config.version,
-        lastUpdated: config.updatedAt
-      };
+    configs.forEach((c) => {
+      configMap[c.key] = c.config;
     });
-    
-    res.status(200).json({
-      success: true,
-      data: configMap,
-      count: configs.length
-    });
+    return res.status(200).json({ success: true, data: configMap, count: configs.length });
   } catch (error) {
     console.error('Error fetching site configuration:', error);
     res.status(500).json({
@@ -70,47 +59,21 @@ const upsertSiteConfig = async (req, res) => {
     const { config, version } = req.body;
     
     if (!key || !config) {
-      return res.status(400).json({
-        success: false,
-        message: 'Key and config data are required'
-      });
+      return res.status(400).json({ success: false, message: 'Key and config data are required' });
     }
     
     const configKey = key.toLowerCase();
+    // Allow 'all' consolidated key and legacy keys
     
-    // Check if key is valid
-    const validKeys = ['branding', 'navigation', 'homepage', 'footer', 'seo', 'main', 'announcementbar'];
-    if (!validKeys.includes(configKey)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid config key. Must be one of: ${validKeys.join(', ')}`
-      });
-    }
-    
-    // Upsert configuration
     const updatedConfig = await SiteConfig.findOneAndUpdate(
       { key: configKey },
-      { 
-        key: configKey,
-        config,
-        version: version || 1,
-        isActive: true
-      },
-      { 
-        new: true, 
-        upsert: true,
-        runValidators: true
-      }
+      { key: configKey, config, version: version || 1, isActive: true },
+      { new: true, upsert: true, runValidators: true }
     );
     
     res.status(200).json({
       success: true,
-      data: {
-        key: updatedConfig.key,
-        config: updatedConfig.config,
-        version: updatedConfig.version,
-        lastUpdated: updatedConfig.updatedAt
-      },
+      data: { key: updatedConfig.key, config: updatedConfig.config, version: updatedConfig.version, lastUpdated: updatedConfig.updatedAt },
       message: 'Site configuration updated successfully'
     });
   } catch (error) {

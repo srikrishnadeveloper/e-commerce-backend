@@ -12,14 +12,18 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5177'], // Add your frontend URL
+  origin: [
+    'http://localhost:5173', // existing frontend
+    'http://localhost:5177', // existing frontend
+    'http://localhost:5174'  // admin frontend
+  ],
   credentials: true
 }));
 app.use(express.json());
 
 // Serve static images from the shared root images folder
 const sharedImagesPath = path.join(__dirname, '..', 'images');
-app.use('/api/images', express.static(sharedImagesPath));
+app.use('/images', express.static(sharedImagesPath));
 
 // Routes
 const productRoutes = require('./src/routes/productRoutes');

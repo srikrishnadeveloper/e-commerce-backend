@@ -336,6 +336,130 @@ const getRelatedProducts = async (req, res) => {
   }
 };
 
+// @desc    Create a new product
+// @route   POST /api/products
+// @access  Private (Admin only)
+const createProduct = async (req, res) => {
+  try {
+    const product = new Product(req.body);
+    const savedProduct = await product.save();
+
+    res.status(201).json({
+      success: true,
+      data: savedProduct,
+      message: 'Product created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Error creating product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update a product
+// @route   PUT /api/products/:id
+// @access  Private (Admin only)
+const updateProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: product,
+      message: 'Product updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Error updating product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete a product
+// @route   DELETE /api/products/:id
+// @access  Private (Admin only)
+const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update product status (featured, bestseller, inStock)
+// @route   PATCH /api/products/:id/status
+// @access  Private (Admin only)
+const updateProductStatus = async (req, res) => {
+  try {
+    const { featured, bestseller, inStock } = req.body;
+    const updateFields = {};
+    
+    if (featured !== undefined) updateFields.featured = featured;
+    if (bestseller !== undefined) updateFields.bestseller = bestseller;
+    if (inStock !== undefined) updateFields.inStock = inStock;
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateFields,
+      { new: true }
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: product,
+      message: 'Product status updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating product status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -344,5 +468,9 @@ module.exports = {
   getBestsellerProducts,
   searchProducts,
   getProductStats,
-  getRelatedProducts
+  getRelatedProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  updateProductStatus
 };

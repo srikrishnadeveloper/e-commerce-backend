@@ -8,7 +8,11 @@ const {
   getBestsellerProducts,
   searchProducts,
   getProductStats,
-  getRelatedProducts
+  getRelatedProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  updateProductStatus
 } = require('../controllers/productController');
 
 // Route: GET /api/products/featured
@@ -30,8 +34,20 @@ router.get('/category/:categoryId', getProductsByCategory);
 // Route: GET /api/products/:id/related
 router.get('/:id/related', getRelatedProducts);
 
+// Route: PATCH /api/products/:id/status
+router.patch('/:id/status', updateProductStatus);
+
+// Route: PUT /api/products/:id
+router.put('/:id', updateProduct);
+
+// Route: DELETE /api/products/:id
+router.delete('/:id', deleteProduct);
+
 // Route: GET /api/products/:id
 router.get('/:id', getProductById);
+
+// Route: POST /api/products
+router.post('/', createProduct);
 
 // Route: GET /api/products
 // This should be last to avoid conflicts with other routes

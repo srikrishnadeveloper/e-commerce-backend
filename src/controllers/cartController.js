@@ -1,10 +1,13 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 
 // Get user cart
 const getCart = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('cart.product');
+    const user = await User.findById(req.user.id)
+      .populate({ path: 'cart.product', options: { lean: true } })
+      .lean();
     
     let subtotal = 0;
     let totalItems = 0;
@@ -45,9 +48,11 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const { productId } = req.params;
-    const { quantity = 1 } = req.body;
+    const qty = parseInt(req.body?.quantity ?? 1, 10);
+    const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1;
 
-    const product = await Product.findById(productId);
+    // Validate product exists and is in stock; lean for speed
+    const product = await Product.findById(productId).select('price inStock').lean();
     if (!product || !product.inStock) {
       return res.status(400).json({
         success: false,
@@ -55,36 +60,37 @@ const addToCart = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
-    const existingItem = user.cart.find(item => 
-      item.product.toString() === productId
+    // Use atomic update: try to increment existing cart item quantity
+    const incResult = await User.updateOne(
+      { _id: req.user.id, 'cart.product': productId },
+      { $inc: { 'cart.$.quantity': quantity } }
     );
 
-    if (existingItem) {
-      existingItem.quantity += parseInt(quantity);
-    } else {
-      user.cart.push({
-        product: productId,
-        quantity: parseInt(quantity)
-      });
+    if (incResult.modifiedCount === 0) {
+      // No existing item; push new one
+      await User.updateOne(
+        { _id: req.user.id },
+        { $push: { cart: { product: productId, quantity } } }
+      );
     }
 
-    await user.save();
-    const updatedUser = await User.findById(req.user.id).populate('cart.product');
-    
+    // Re-fetch populated cart to compute totals and return consistent shape
+    const updatedUser = await User.findById(req.user.id)
+      .populate({ path: 'cart.product', options: { lean: true } })
+      .lean();
+
     let subtotal = 0;
     let totalItems = 0;
-    
-    const cartItems = updatedUser.cart.map(item => {
-      const itemTotal = item.product.price * item.quantity;
+
+    const cartItems = updatedUser.cart.map((item) => {
+      const itemTotal = (item.product.price || 0) * item.quantity;
       subtotal += itemTotal;
       totalItems += item.quantity;
-      
       return {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
-        itemTotal: itemTotal
+        itemTotal
       };
     });
 
@@ -93,8 +99,8 @@ const addToCart = async (req, res) => {
       message: 'Product added to cart',
       data: {
         items: cartItems,
-        subtotal: subtotal,
-        totalItems: totalItems,
+        subtotal,
+        totalItems,
         shipping: subtotal > 50 ? 0 : 10,
         total: subtotal + (subtotal > 50 ? 0 : 10)
       }
@@ -108,47 +114,50 @@ const addToCart = async (req, res) => {
   }
 };
 
-// Update cart item quantity
+// Update cart item quantity (atomic)
 const updateCartItem = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { quantity } = req.body;
+    const qty = parseInt(req.body?.quantity, 10);
+    const quantity = Number.isFinite(qty) && qty > 0 ? qty : null;
 
-    if (!quantity || quantity < 1) {
+    if (!quantity) {
       return res.status(400).json({
         success: false,
         message: 'Quantity must be at least 1'
       });
     }
 
-    const user = await User.findById(req.user.id);
-    const cartItem = user.cart.id(itemId);
+    const itemObjectId = new mongoose.Types.ObjectId(itemId);
+    const updateRes = await User.updateOne(
+      { _id: req.user.id },
+      { $set: { 'cart.$[elem].quantity': quantity } },
+      { arrayFilters: [{ 'elem._id': itemObjectId }] }
+    );
 
-    if (!cartItem) {
+    if (updateRes.modifiedCount === 0) {
       return res.status(404).json({
         success: false,
         message: 'Cart item not found'
       });
     }
 
-    cartItem.quantity = parseInt(quantity);
-    await user.save();
+    const updatedUser = await User.findById(req.user.id)
+      .populate({ path: 'cart.product', options: { lean: true } })
+      .lean();
 
-    const updatedUser = await User.findById(req.user.id).populate('cart.product');
-    
     let subtotal = 0;
     let totalItems = 0;
-    
-    const cartItems = updatedUser.cart.map(item => {
-      const itemTotal = item.product.price * item.quantity;
+
+    const cartItems = updatedUser.cart.map((item) => {
+      const itemTotal = (item.product.price || 0) * item.quantity;
       subtotal += itemTotal;
       totalItems += item.quantity;
-      
       return {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
-        itemTotal: itemTotal
+        itemTotal
       };
     });
 
@@ -157,8 +166,8 @@ const updateCartItem = async (req, res) => {
       message: 'Cart item updated',
       data: {
         items: cartItems,
-        subtotal: subtotal,
-        totalItems: totalItems,
+        subtotal,
+        totalItems,
         shipping: subtotal > 50 ? 0 : 10,
         total: subtotal + (subtotal > 50 ? 0 : 10)
       }
@@ -172,39 +181,40 @@ const updateCartItem = async (req, res) => {
   }
 };
 
-// Remove item from cart
+// Remove item from cart (atomic)
 const removeFromCart = async (req, res) => {
   try {
     const { itemId } = req.params;
+    const itemObjectId = new mongoose.Types.ObjectId(itemId);
 
-    const user = await User.findById(req.user.id);
-    const cartItem = user.cart.id(itemId);
+    const pullRes = await User.updateOne(
+      { _id: req.user.id },
+      { $pull: { cart: { _id: itemObjectId } } }
+    );
 
-    if (!cartItem) {
+    if (pullRes.modifiedCount === 0) {
       return res.status(404).json({
         success: false,
         message: 'Cart item not found'
       });
     }
 
-    cartItem.remove();
-    await user.save();
+    const updatedUser = await User.findById(req.user.id)
+      .populate({ path: 'cart.product', options: { lean: true } })
+      .lean();
 
-    const updatedUser = await User.findById(req.user.id).populate('cart.product');
-    
     let subtotal = 0;
     let totalItems = 0;
-    
-    const cartItems = updatedUser.cart.map(item => {
-      const itemTotal = item.product.price * item.quantity;
+
+    const cartItems = updatedUser.cart.map((item) => {
+      const itemTotal = (item.product.price || 0) * item.quantity;
       subtotal += itemTotal;
       totalItems += item.quantity;
-      
       return {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
-        itemTotal: itemTotal
+        itemTotal
       };
     });
 
@@ -213,8 +223,8 @@ const removeFromCart = async (req, res) => {
       message: 'Item removed from cart',
       data: {
         items: cartItems,
-        subtotal: subtotal,
-        totalItems: totalItems,
+        subtotal,
+        totalItems,
         shipping: subtotal > 50 ? 0 : 10,
         total: subtotal + (subtotal > 50 ? 0 : 10)
       }
@@ -228,12 +238,13 @@ const removeFromCart = async (req, res) => {
   }
 };
 
-// Clear cart
+// Clear cart (atomic)
 const clearCart = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    user.cart = [];
-    await user.save();
+    await User.updateOne(
+      { _id: req.user.id },
+      { $set: { cart: [] } }
+    );
 
     res.status(200).json({
       success: true,

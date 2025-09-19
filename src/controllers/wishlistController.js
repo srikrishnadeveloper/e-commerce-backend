@@ -23,14 +23,14 @@ const getWishlist = async (req, res) => {
   }
 };
 
-// @desc    Add product to wishlist
+// @desc    Add product to wishlist (idempotent)
 // @route   POST /api/wishlist/:productId
 // @access  Private
 const addToWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    // Check if product exists
+    // Verify product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -39,25 +39,19 @@ const addToWishlist = async (req, res) => {
       });
     }
 
-    // Check if product is already in wishlist
-    const user = await User.findById(req.user.id);
-    if (user.wishlist.includes(productId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Product is already in your wishlist'
-      });
-    }
+    // Atomically add to wishlist if not present
+    const updateResult = await User.updateOne(
+      { _id: req.user.id },
+      { $addToSet: { wishlist: productId } }
+    );
 
-    // Add to wishlist
-    user.wishlist.push(productId);
-    await user.save();
-
-    // Populate the wishlist and return updated list
+    // Return populated wishlist
     const updatedUser = await User.findById(req.user.id).populate('wishlist');
 
-    res.status(200).json({
+    const added = updateResult.modifiedCount > 0; // true if it was newly added
+    return res.status(200).json({
       success: true,
-      message: 'Product added to wishlist',
+      message: added ? 'Product added to wishlist' : 'Product already in wishlist',
       data: updatedUser.wishlist,
       count: updatedUser.wishlist.length
     });

@@ -9,6 +9,8 @@
     "seed": "node scripts/seedDatabase.js",
     "seed:config": "node scripts/seedSiteConfig.js",
     "seed:all": "npm run seed && npm run seed:config",
+    "db:check": "node scripts/checkDb.js",
+    "test:signup": "node scripts/signupTest.js",
     "migrate": "node scripts/migrateImages.js"
   },
   "keywords": [

@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema({
   passwordResetExpires: Date,
 });
 
+// Index for faster cart item lookups/updates by product
+userSchema.index({ 'cart.product': 1 });
+
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
 

@@ -4,8 +4,8 @@ const SiteConfigSchema = new mongoose.Schema({
   key: {
     type: String,
     required: true,
-    unique: true,
-    enum: ['all', 'branding', 'navigation', 'homepage', 'footer', 'seo', 'main', 'announcementbar', 'hero', 'company']
+    unique: true
+    // Removed enum constraint to allow backup keys like 'backup_timestamp'
   },
   config: {
     type: mongoose.Schema.Types.Mixed, // Allows any JSON structure

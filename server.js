@@ -15,7 +15,8 @@ app.use(cors({
   origin: [
     'http://localhost:5173', // existing frontend
     'http://localhost:5177', // existing frontend
-    'http://localhost:5174'  // admin frontend
+    'http://localhost:5174', // admin frontend
+    'http://localhost:8091'  // admin frontend (current port)
   ],
   credentials: true
 }));
@@ -33,6 +34,7 @@ const userRoutes = require('./src/routes/userRoutes');
 const authRoutes = require('./src/routes/authRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
 const cartRoutes = require('./src/routes/cartRoutes');
+const imageRoutes = require('./src/routes/imageRoutes');
 
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -41,6 +43,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/images', imageRoutes);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

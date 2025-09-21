@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 
 // @desc    Get all products with optional filtering and pagination
 // @route   GET /api/products
@@ -16,24 +17,47 @@ const getAllProducts = async (req, res) => {
       maxPrice,
       sort = 'createdAt',
       order = 'desc',
-      search
+      search,
+      admin = 'false' // Admin flag to include products from disabled categories
     } = req.query;
 
     // Build filter query
     const filter = {};
-    
-    if (category) filter.categoryId = category;
+
+    // For public access, only show products from active categories
+    if (admin !== 'true') {
+      const activeCategories = await Category.find({ status: 'active' }).select('_id');
+      const activeCategoryIds = activeCategories.map(cat => cat._id);
+      filter.categoryId = { $in: activeCategoryIds };
+    }
+
+    if (category) {
+      if (admin === 'true') {
+        filter.categoryId = category;
+      } else {
+        // Verify the category is active for public access
+        const categoryDoc = await Category.findById(category);
+        if (!categoryDoc || categoryDoc.status !== 'active') {
+          return res.status(404).json({
+            success: false,
+            message: 'Category not found or not available'
+          });
+        }
+        filter.categoryId = category;
+      }
+    }
+
     if (featured === 'true') filter.featured = true;
     if (bestseller === 'true') filter.bestseller = true;
     if (inStock === 'true') filter.inStock = true;
-    
+
     // Price range filter
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = parseFloat(minPrice);
       if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
     }
-    
+
     // Text search
     if (search) {
       filter.$text = { $search: search };
@@ -82,6 +106,8 @@ const getAllProducts = async (req, res) => {
 // @access  Public
 const getProductById = async (req, res) => {
   try {
+    const { admin = 'false' } = req.query;
+
     const product = await Product.findById(req.params.id);
 
     if (!product) {
@@ -91,13 +117,24 @@ const getProductById = async (req, res) => {
       });
     }
 
+    // For public access, check if the product's category is active
+    if (admin !== 'true') {
+      const category = await Category.findById(product.categoryId);
+      if (!category || category.status !== 'active') {
+        return res.status(404).json({
+          success: false,
+          message: 'Product not available'
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: product
     });
   } catch (error) {
     console.error('Error fetching product:', error);
-    
+
     // Handle invalid ObjectId
     if (error.name === 'CastError') {
       return res.status(400).json({
@@ -341,8 +378,48 @@ const getRelatedProducts = async (req, res) => {
 // @access  Private (Admin only)
 const createProduct = async (req, res) => {
   try {
-    const product = new Product(req.body);
+    const { categoryId, category, ...productData } = req.body;
+
+    // Validate category exists and is active
+    if (categoryId) {
+      const categoryExists = await Category.findById(categoryId);
+      if (!categoryExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category ID'
+        });
+      }
+
+      // Update category name to match the category document
+      productData.category = categoryExists.name;
+      productData.categoryId = categoryId;
+    } else if (category) {
+      // If only category name is provided, find the category
+      const categoryDoc = await Category.findOne({ name: category });
+      if (!categoryDoc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Category not found. Please create the category first.'
+        });
+      }
+
+      productData.category = category;
+      productData.categoryId = categoryDoc._id;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Category is required'
+      });
+    }
+
+    const product = new Product(productData);
     const savedProduct = await product.save();
+
+    // Update category product count
+    await Category.findByIdAndUpdate(
+      productData.categoryId,
+      { $inc: { productCount: 1 } }
+    );
 
     res.status(201).json({
       success: true,
@@ -364,17 +441,61 @@ const createProduct = async (req, res) => {
 // @access  Private (Admin only)
 const updateProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-
-    if (!product) {
+    const existingProduct = await Product.findById(req.params.id);
+    if (!existingProduct) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
+    }
+
+    const { categoryId, category, ...updateData } = req.body;
+    let oldCategoryId = existingProduct.categoryId;
+
+    // Handle category updates
+    if (categoryId) {
+      const categoryExists = await Category.findById(categoryId);
+      if (!categoryExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category ID'
+        });
+      }
+
+      updateData.category = categoryExists.name;
+      updateData.categoryId = categoryId;
+    } else if (category) {
+      const categoryDoc = await Category.findOne({ name: category });
+      if (!categoryDoc) {
+        return res.status(400).json({
+          success: false,
+          message: 'Category not found. Please create the category first.'
+        });
+      }
+
+      updateData.category = category;
+      updateData.categoryId = categoryDoc._id;
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    // Update category product counts if category changed
+    if (updateData.categoryId && oldCategoryId.toString() !== updateData.categoryId.toString()) {
+      // Decrease count for old category
+      await Category.findByIdAndUpdate(
+        oldCategoryId,
+        { $inc: { productCount: -1 } }
+      );
+
+      // Increase count for new category
+      await Category.findByIdAndUpdate(
+        updateData.categoryId,
+        { $inc: { productCount: 1 } }
+      );
     }
 
     res.json({
@@ -397,13 +518,26 @@ const updateProduct = async (req, res) => {
 // @access  Private (Admin only)
 const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
+    }
+
+    const categoryId = product.categoryId;
+
+    // Delete the product
+    await Product.findByIdAndDelete(req.params.id);
+
+    // Update category product count
+    if (categoryId) {
+      await Category.findByIdAndUpdate(
+        categoryId,
+        { $inc: { productCount: -1 } }
+      );
     }
 
     res.json({

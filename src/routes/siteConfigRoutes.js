@@ -2,10 +2,40 @@ const express = require('express');
 const {
   getSiteConfig,
   upsertSiteConfig,
-  deleteSiteConfig
+  deleteSiteConfig,
+  createBackup,
+  getBackups,
+  restoreFromBackup,
+  validateSiteConfig,
+  getConfigHistory
 } = require('../controllers/siteConfigController');
 
 const router = express.Router();
+
+// @route   POST /api/siteconfig/backup
+// @desc    Create backup of current site configuration
+// @access  Private (TODO: add authentication middleware)
+router.post('/backup', createBackup);
+
+// @route   GET /api/siteconfig/backups
+// @desc    Get all backups
+// @access  Private (TODO: add authentication middleware)
+router.get('/backups', getBackups);
+
+// @route   POST /api/siteconfig/restore/:backupKey
+// @desc    Restore from backup
+// @access  Private (TODO: add authentication middleware)
+router.post('/restore/:backupKey', restoreFromBackup);
+
+// @route   POST /api/siteconfig/validate
+// @desc    Validate site configuration data
+// @access  Private (TODO: add authentication middleware)
+router.post('/validate', validateSiteConfig);
+
+// @route   GET /api/siteconfig/history
+// @desc    Get configuration history/versions
+// @access  Private (TODO: add authentication middleware)
+router.get('/history', getConfigHistory);
 
 // @route   GET /api/siteconfig
 // @desc    Get all site configurations

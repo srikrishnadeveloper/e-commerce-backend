@@ -16,11 +16,17 @@ app.use(cors({
     'http://localhost:5173', // existing frontend
     'http://localhost:5177', // existing frontend
     'http://localhost:5174', // admin frontend
-    'http://localhost:8091'  // admin frontend (current port)
+    'http://localhost:8090', // admin frontend (vite default here)
+    'http://localhost:8091'  // admin frontend (alternate)
   ],
   credentials: true
 }));
 app.use(express.json());
+// Lightweight health endpoint for readiness/liveness checks
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'OK' });
+});
+
 
 // Serve static images from the shared root images folder
 const sharedImagesPath = path.join(__dirname, '..', 'images');

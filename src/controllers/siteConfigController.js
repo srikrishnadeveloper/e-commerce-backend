@@ -27,6 +27,11 @@ const getSiteConfig = async (req, res) => {
     if (key) {
       const keyLower = key.toLowerCase();
       if (consolidated) {
+        // Special case: if key is 'all', return the entire config
+        if (keyLower === 'all') {
+          return res.status(200).json({ success: true, data: consolidated.config, version: consolidated.version, lastUpdated: consolidated.updatedAt });
+        }
+
         const section = consolidated.config?.[keyLower];
         if (section === undefined) {
           // Return minimal defaults for known sections instead of 404

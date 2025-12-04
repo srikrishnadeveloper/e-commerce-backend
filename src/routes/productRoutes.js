@@ -4,7 +4,7 @@ const {
   getAllProducts,
   getProductById,
   getProductsByCategory,
-  getFeaturedProducts,
+  getHotDealProducts,
   getBestsellerProducts,
   searchProducts,
   getProductStats,
@@ -15,9 +15,9 @@ const {
   updateProductStatus
 } = require('../controllers/productController');
 
-// Route: GET /api/products/featured
+// Route: GET /api/products/hotdeals
 // Must be defined before /api/products/:id to avoid conflicts
-router.get('/featured', getFeaturedProducts);
+router.get('/hotdeals', getHotDealProducts);
 
 // Route: GET /api/products/bestsellers
 router.get('/bestsellers', getBestsellerProducts);

@@ -1,5 +1,8 @@
 const express = require('express');
 const {
+  sendOTP,
+  verifyOTP,
+  resendOTP,
   signup,
   login,
   forgotPassword,
@@ -12,7 +15,12 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Public routes
+// Public routes - Email verification
+router.post('/send-otp', sendOTP);
+router.post('/verify-otp', verifyOTP);
+router.post('/resend-otp', resendOTP);
+
+// Public routes - Authentication
 router.post('/signup', signup);
 router.post('/login', login);
 router.post('/forgotPassword', forgotPassword);

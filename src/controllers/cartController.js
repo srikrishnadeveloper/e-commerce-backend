@@ -9,21 +9,37 @@ const getCart = async (req, res) => {
       .populate({ path: 'cart.product', options: { lean: true } })
       .lean();
     
+    // Handle case where user or cart doesn't exist
+    if (!user || !user.cart || !Array.isArray(user.cart)) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          items: [],
+          subtotal: 0,
+          totalItems: 0,
+          shipping: 0,
+          total: 0
+        }
+      });
+    }
+    
     let subtotal = 0;
     let totalItems = 0;
     
-    const cartItems = user.cart.map(item => {
-      const itemTotal = item.product.price * item.quantity;
-      subtotal += itemTotal;
-      totalItems += item.quantity;
-      
-      return {
-        _id: item._id,
-        product: item.product,
-        quantity: item.quantity,
-        itemTotal: itemTotal
-      };
-    });
+    const cartItems = user.cart
+      .filter(item => item.product) // Filter out items with deleted products
+      .map(item => {
+        const itemTotal = (item.product.price || 0) * item.quantity;
+        subtotal += itemTotal;
+        totalItems += item.quantity;
+        
+        return {
+          _id: item._id,
+          product: item.product,
+          quantity: item.quantity,
+          itemTotal: itemTotal
+        };
+      });
 
     res.status(200).json({
       success: true,

@@ -48,6 +48,7 @@ const siteConfigs = [
             heading: 'Find Your Perfect Style',
             subheading: 'New arrivals are here. Discover the latest trends and update your wardrobe with our exclusive collection.',
             button: 'Shop Now',
+            buttonLink: '/products',
             image: '/images/herosection/herosection-1.png',
           },
           {
@@ -55,6 +56,7 @@ const siteConfigs = [
             heading: 'Step Up Your Shoe Game',
             subheading: 'From casual sneakers to elegant heels, find the perfect pair for any occasion.',
             button: 'Discover More',
+            buttonLink: '/products?category=shoes',
             image: '/images/herosection/herosection-2.png',
           },
           {
@@ -62,6 +64,7 @@ const siteConfigs = [
             heading: 'Accessorize Your Look',
             subheading: 'Complete your outfit with our stylish collection of accessories.',
             button: 'Browse Accessories',
+            buttonLink: '/products?category=accessories',
             image: '/images/herosection/herosection-3.png',
           },
         ],
@@ -82,40 +85,41 @@ const siteConfigs = [
           ]
         },
         testimonialSection: {
-        title: 'What our customers say',
-        navigationLabels: { previous: 'Previous', next: 'Next' },
-        testimonials: [
-          { name: 'Alex Johnson', role: 'Verified Buyer', rating: 5, text: 'Fantastic quality and fast delivery. Highly recommend!' },
-          { name: 'Sara Lee', role: 'Loyal Customer', rating: 5, text: 'Great customer service and amazing deals.' },
-          { name: 'Michael Chen', role: 'New Customer', rating: 4, text: 'Smooth shopping experience and easy returns.' }
-        ]
+          title: 'What our customers say',
+          navigationLabels: { previous: 'Previous', next: 'Next' },
+          testimonials: [
+            { name: 'Alex Johnson', role: 'Verified Buyer', rating: 5, text: 'Fantastic quality and fast delivery. Highly recommend!' },
+            { name: 'Sara Lee', role: 'Loyal Customer', rating: 5, text: 'Great customer service and amazing deals.' },
+            { name: 'Michael Chen', role: 'New Customer', rating: 4, text: 'Smooth shopping experience and easy returns.' }
+          ]
+        },
+        featuredCollections: {
+          title: "Featured Collections",
+          enabled: true,
+          collections: [
+            {
+              id: 1,
+              title: "UV Charger",
+              subtitle: "Every piece is made to last beyond the season",
+              description: "Explore our curated selection of premium products designed for the discerning customer.",
+              image: "/images/featured-collections/chargerimage.png",
+              buttonText: "Shop Collection",
+              buttonLink: "/products?category=charging",
+              gradient: "from-black/60 to-black/20"
+            },
+            {
+              id: 2,
+              title: "Nest Heat",
+              subtitle: "Every piece is made to last beyond the season",
+              description: "Be the first to discover our latest products and trending styles.",
+              image: "/images/featured-collections/headphoneorangecolor.png",
+              buttonText: "Shop Collection",
+              buttonLink: "/products?category=smart-home",
+              gradient: "from-black/60 to-black/20"
+            }
+          ]
+        }
       },
-      featuredCollections: {
-        title: "Featured Collections",
-        collections: [
-          {
-            id: 1,
-            title: "UV Charger",
-            subtitle: "Every piece is made to last beyond the season",
-            description: "Explore our curated selection of premium products designed for the discerning customer.",
-            image: "/images/fetured-collections/fetured collection.png",
-            buttonText: "Shop Collection",
-            buttonLink: "/products?category=charging",
-            gradient: "from-black/60 to-black/20"
-          },
-          {
-            id: 2,
-            title: "Nest Heat",
-            subtitle: "Every piece is made to last beyond the season",
-            description: "Be the first to discover our latest products and trending styles.",
-            image: "/images/fetured-collections/feturedcollection.png",
-            buttonText: "Shop Collection",
-            buttonLink: "/products?category=smart-home",
-            gradient: "from-black/60 to-black/20"
-          }
-        ]
-      }
-    },
       footer: {
         copyright: '© 2024 TechCart. All Rights Reserved.',
         getDirectionText: 'Get Direction',
@@ -156,6 +160,34 @@ const siteConfigs = [
           email: "contact@example.com",
           phone: "123-456-7890"
         }
+      },
+      contactUs: {
+        pageTitle: 'Contact Us',
+        sectionTitle: 'Visit Our Store',
+        formTitle: 'Get in Touch',
+        formDescription: "If you've got great products your making or looking to work with us then drop us a line.",
+        address: '66 Mott St, New York, New York, Zip Code: 10006, AS',
+        phone: '(623) 934-2400',
+        email: 'EComposer@example.com',
+        businessHoursTitle: 'Open Time',
+        businessHours: 'Our store has re-opened for shopping,\nexchange Every day 11am to 7pm',
+        socialMedia: [
+          {
+            name: 'Facebook',
+            url: 'https://facebook.com',
+            icon: 'facebook'
+          },
+          {
+            name: 'Twitter',
+            url: 'https://twitter.com',
+            icon: 'twitter'
+          },
+          {
+            name: 'Instagram',
+            url: 'https://instagram.com',
+            icon: 'instagram'
+          }
+        ]
       }
     }
   }

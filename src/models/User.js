@@ -2,6 +2,48 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
+// Address sub-schema
+const addressSchema = new mongoose.Schema({
+  label: {
+    type: String,
+    default: 'Home',
+    enum: ['Home', 'Work', 'Other']
+  },
+  fullName: {
+    type: String,
+    required: [true, 'Full name is required']
+  },
+  phone: {
+    type: String,
+    required: [true, 'Phone number is required']
+  },
+  addressLine1: {
+    type: String,
+    required: [true, 'Address is required']
+  },
+  addressLine2: String,
+  city: {
+    type: String,
+    required: [true, 'City is required']
+  },
+  state: {
+    type: String,
+    required: [true, 'State is required']
+  },
+  postalCode: {
+    type: String,
+    required: [true, 'Postal code is required']
+  },
+  country: {
+    type: String,
+    default: 'United States'
+  },
+  isDefault: {
+    type: Boolean,
+    default: false
+  }
+}, { timestamps: true });
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -13,6 +55,27 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerifiedAt: Date,
+  verificationOTP: String,
+  verificationOTPExpires: Date,
+  phone: {
+    type: String,
+    trim: true
+  },
+  phoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  phoneVerifiedAt: Date,
   password: {
     type: String,
     required: [true, 'Please provide a password'],
@@ -29,6 +92,7 @@ const userSchema = new mongoose.Schema({
       message: 'Passwords are not the same!'
     }
   },
+  addresses: [addressSchema],
   cart: [{
     product: {
       type: mongoose.Schema.ObjectId,
@@ -82,6 +146,34 @@ userSchema.methods.createPasswordResetToken = function() {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
   return resetToken;
+};
+
+// Generate 6-digit OTP for email verification
+userSchema.methods.createVerificationOTP = function() {
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store hashed OTP
+  this.verificationOTP = crypto
+    .createHash('sha256')
+    .update(otp)
+    .digest('hex');
+  
+  // OTP expires in 10 minutes
+  this.verificationOTPExpires = Date.now() + 10 * 60 * 1000;
+  
+  return otp;
+};
+
+// Verify OTP
+userSchema.methods.verifyOTP = function(candidateOTP) {
+  const hashedOTP = crypto
+    .createHash('sha256')
+    .update(candidateOTP)
+    .digest('hex');
+  
+  return this.verificationOTP === hashedOTP && 
+         this.verificationOTPExpires > Date.now();
 };
 
 const User = mongoose.model('User', userSchema);

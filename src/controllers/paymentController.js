@@ -1,5 +1,17 @@
 const Order = require('../models/Order');
 const { sendEmail } = require('../utils/email');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+
+const PAYMENT_CURRENCY = process.env.PAYMENT_CURRENCY || 'INR';
+
+// Create Razorpay client when keys are present
+const razorpayClient = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    })
+  : null;
 
 /**
  * Dummy Payment System
@@ -14,6 +26,25 @@ const PAYMENT_METHODS = {
   NET_BANKING: 'net_banking',
   WALLET: 'wallet',
   COD: 'cod'
+};
+
+const toSubUnit = (amount) => {
+  // Razorpay expects the smallest currency unit (paise for INR)
+  const numericAmount = Number(amount) || 0;
+  return Math.max(1, Math.round(numericAmount * 100));
+};
+
+const ensureRazorpayConfigured = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID || '';
+  const keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+  const placeholders = ['rzp_test_key', 'razorpay_test_secret'];
+
+  if (!razorpayClient) {
+    throw new Error('Razorpay keys are missing. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+  }
+  if (placeholders.includes(keyId) || placeholders.includes(keySecret)) {
+    throw new Error('Razorpay keys are placeholders. Update config.env with your actual test key/secret.');
+  }
 };
 
 // Generate dummy payment ID
@@ -335,12 +366,197 @@ const processCOD = async (req, res) => {
   }
 };
 
+// @desc    Create Razorpay order for checkout
+// @route   POST /api/payments/razorpay/order
+// @access  Private
+const createRazorpayOrder = async (req, res) => {
+  try {
+    ensureRazorpayConfigured();
+    const { orderId } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required' });
+    }
+
+    const order = await Order.findOne({ _id: orderId, user: req.user.id });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (order.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, message: 'Order is already paid' });
+    }
+
+    const razorpayOrder = await razorpayClient.orders.create({
+      amount: toSubUnit(order.total),
+      currency: PAYMENT_CURRENCY,
+      receipt: `order_${order._id}`,
+      notes: {
+        orderId: order._id.toString(),
+        userId: req.user.id.toString()
+      }
+    });
+
+    order.paymentInfo = {
+      paymentId: razorpayOrder.id,
+      method: 'razorpay',
+      status: 'initiated',
+      amount: order.total,
+      initiatedAt: new Date()
+    };
+    await order.save();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        orderId: order._id,
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        keyId: process.env.RAZORPAY_KEY_ID
+      }
+    });
+  } catch (error) {
+    const rzpDescription = error?.error?.description || error?.message;
+    console.error('Create Razorpay order error:', rzpDescription || error);
+    const message = error.message === 'Razorpay keys are missing. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
+      ? 'Payment gateway is not configured'
+      : rzpDescription || 'Failed to create Razorpay order';
+    return res.status(500).json({ success: false, message });
+  }
+};
+
+// @desc    Verify Razorpay payment signature and mark order paid
+// @route   POST /api/payments/razorpay/verify
+// @access  Private
+const verifyRazorpayPayment = async (req, res) => {
+  try {
+    ensureRazorpayConfigured();
+    const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+    if (!orderId || !razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+      return res.status(400).json({
+        success: false,
+        message: 'orderId, razorpayPaymentId, razorpayOrderId, and razorpaySignature are required'
+      });
+    }
+
+    const order = await Order.findOne({ _id: orderId, user: req.user.id }).populate('user', 'name email');
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Validate signature
+    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      order.paymentInfo = {
+        ...(order.paymentInfo || {}),
+        paymentId: razorpayOrderId,
+        method: 'razorpay',
+        status: 'failed',
+        failedAt: new Date(),
+        failureReason: 'Signature mismatch'
+      };
+      await order.save();
+      return res.status(400).json({ success: false, message: 'Payment verification failed' });
+    }
+
+    // Mark order as paid
+    order.paymentStatus = 'paid';
+    order.status = 'processing';
+    order.paymentInfo = {
+      paymentId: razorpayPaymentId,
+      transactionId: razorpayOrderId,
+      method: 'razorpay',
+      status: 'completed',
+      paidAt: new Date(),
+      amount: order.total
+    };
+
+    if (!order.timeline) order.timeline = [];
+    order.timeline.push({
+      action: 'Payment Received',
+      details: `Payment of ${order.total.toFixed(2)} ${PAYMENT_CURRENCY} received via Razorpay`,
+      performedAt: new Date(),
+      performedBy: 'System'
+    });
+
+    await order.save();
+
+    // Send confirmation email (best-effort)
+    if (order.user?.email) {
+      try {
+        await sendEmail({
+          email: order.user.email,
+          subject: `Payment Confirmed - Order #${order._id.toString().slice(-8)}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #28a745;">Payment Successful!</h2>
+              <p>Hi ${order.user.name || 'there'},</p>
+              <p>Your payment has been successfully processed.</p>
+              <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3>Payment Details</h3>
+                <p><strong>Order #:</strong> ${order._id.toString().slice(-8)}</p>
+                <p><strong>Transaction ID:</strong> ${razorpayPaymentId}</p>
+                <p><strong>Amount:</strong> ${order.total.toFixed(2)} ${PAYMENT_CURRENCY}</p>
+                <p><strong>Payment Method:</strong> Razorpay</p>
+                <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+              </div>
+              <p>Your order is now being processed and will be shipped soon.</p>
+              <p>Thank you for your purchase!</p>
+            </div>
+          `,
+          message: `Payment confirmed for Order #${order._id.toString().slice(-8)}`
+        });
+      } catch (emailError) {
+        console.error('Payment confirmation email failed:', emailError);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      data: {
+        paymentId: razorpayPaymentId,
+        transactionId: razorpayOrderId,
+        status: 'completed',
+        amount: order.total,
+        paidAt: order.paymentInfo.paidAt,
+        order: {
+          _id: order._id,
+          status: order.status,
+          paymentStatus: order.paymentStatus
+        }
+      }
+    });
+  } catch (error) {
+    const rzpDescription = error?.error?.description || error?.message;
+    console.error('Verify Razorpay payment error:', rzpDescription || error);
+    const message = error.message === 'Razorpay keys are missing. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
+      ? 'Payment gateway is not configured'
+      : rzpDescription || 'Failed to verify payment';
+    return res.status(500).json({ success: false, message });
+  }
+};
+
 // @desc    Get available payment methods
 // @route   GET /api/payments/methods
 // @access  Public
 const getPaymentMethods = async (req, res) => {
   try {
     const methods = [
+      {
+        id: 'razorpay',
+        name: 'Razorpay',
+        icon: 'bolt',
+        description: 'Cards, UPI, NetBanking, Wallets (test mode)',
+        enabled: true
+      },
       {
         id: 'card',
         name: 'Credit/Debit Card',
@@ -396,5 +612,7 @@ module.exports = {
   processPayment,
   getPaymentStatus,
   processCOD,
-  getPaymentMethods
+  getPaymentMethods,
+  createRazorpayOrder,
+  verifyRazorpayPayment
 };

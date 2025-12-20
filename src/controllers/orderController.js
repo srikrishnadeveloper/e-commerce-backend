@@ -6,7 +6,7 @@ const { sendOrderConfirmationEmail } = require('../utils/orderEmails');
 // Create order directly from product selection (for direct checkout)
 const createDirectOrder = async (req, res) => {
   try {
-    const { productId, quantity = 1, shippingAddress } = req.body;
+    const { productId, quantity = 1, shippingAddress, selectedColor = '', selectedSize = '' } = req.body;
 
     // Validate required fields
     if (!productId || !shippingAddress) {
@@ -48,7 +48,9 @@ const createDirectOrder = async (req, res) => {
       price: product.price,
       image: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : undefined,
       quantity: parseInt(quantity),
-      itemTotal
+      itemTotal,
+      selectedColor,
+      selectedSize
     };
 
     // Create order
@@ -140,6 +142,8 @@ const createOrderFromCart = async (req, res) => {
         image: Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : undefined,
         quantity: quantity,
         itemTotal,
+        selectedColor: item.selectedColor || '',
+        selectedSize: item.selectedSize || '',
       };
     });
 

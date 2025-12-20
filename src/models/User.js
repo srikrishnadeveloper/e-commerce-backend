@@ -101,6 +101,14 @@ const userSchema = new mongoose.Schema({
     quantity: {
       type: Number,
       default: 1
+    },
+    selectedColor: {
+      type: String,
+      default: ''
+    },
+    selectedSize: {
+      type: String,
+      default: ''
     }
   }],
   wishlist: [{

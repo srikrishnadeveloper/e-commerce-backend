@@ -37,6 +37,8 @@ const getCart = async (req, res) => {
           _id: item._id,
           product: item.product,
           quantity: item.quantity,
+          selectedColor: item.selectedColor || '',
+          selectedSize: item.selectedSize || '',
           itemTotal: itemTotal
         };
       });
@@ -66,6 +68,8 @@ const addToCart = async (req, res) => {
     const { productId } = req.params;
     const qty = parseInt(req.body?.quantity ?? 1, 10);
     const quantity = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const selectedColor = req.body?.selectedColor || '';
+    const selectedSize = req.body?.selectedSize || '';
 
     // Validate product exists and is in stock; lean for speed
     const product = await Product.findById(productId).select('price inStock').lean();
@@ -76,17 +80,22 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // Use atomic update: try to increment existing cart item quantity
+    // Use atomic update: try to increment existing cart item quantity (matching color/size)
     const incResult = await User.updateOne(
-      { _id: req.user.id, 'cart.product': productId },
+      { 
+        _id: req.user.id, 
+        'cart.product': productId,
+        'cart.selectedColor': selectedColor,
+        'cart.selectedSize': selectedSize
+      },
       { $inc: { 'cart.$.quantity': quantity } }
     );
 
     if (incResult.modifiedCount === 0) {
-      // No existing item; push new one
+      // No existing item with same color/size; push new one
       await User.updateOne(
         { _id: req.user.id },
-        { $push: { cart: { product: productId, quantity } } }
+        { $push: { cart: { product: productId, quantity, selectedColor, selectedSize } } }
       );
     }
 
@@ -106,6 +115,8 @@ const addToCart = async (req, res) => {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
+        selectedColor: item.selectedColor || '',
+        selectedSize: item.selectedSize || '',
         itemTotal
       };
     });
@@ -173,6 +184,8 @@ const updateCartItem = async (req, res) => {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
+        selectedColor: item.selectedColor || '',
+        selectedSize: item.selectedSize || '',
         itemTotal
       };
     });
@@ -230,6 +243,8 @@ const removeFromCart = async (req, res) => {
         _id: item._id,
         product: item.product,
         quantity: item.quantity,
+        selectedColor: item.selectedColor || '',
+        selectedSize: item.selectedSize || '',
         itemTotal
       };
     });

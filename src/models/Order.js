@@ -28,6 +28,14 @@ const orderItemSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  selectedColor: {
+    type: String,
+    default: '',
+  },
+  selectedSize: {
+    type: String,
+    default: '',
+  },
 });
 
 const orderSchema = new mongoose.Schema(
@@ -69,19 +77,28 @@ const orderSchema = new mongoose.Schema(
       transactionId: String,
       method: {
         type: String,
-        enum: ['card', 'upi', 'net_banking', 'wallet', 'cod'],
+        enum: ['card', 'upi', 'net_banking', 'wallet', 'cod', 'razorpay', 'manual_upi'],
         default: 'card'
       },
       status: {
         type: String,
-        enum: ['initiated', 'pending_cod', 'completed', 'failed'],
+        enum: ['initiated', 'authorized', 'pending_cod', 'pending_verification', 'completed', 'failed'],
         default: 'initiated'
       },
       amount: Number,
       initiatedAt: Date,
       paidAt: Date,
       failedAt: Date,
-      failureReason: String
+      failureReason: String,
+      // Manual UPI payment fields
+      upiTransactionId: String,
+      upiSubmittedAt: Date,
+      verifiedAt: Date,
+      verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      verificationNotes: String
     },
     couponApplied: {
       code: String,

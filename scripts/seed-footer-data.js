@@ -25,18 +25,16 @@ const footerConfig = {
         title: 'Company',
         links: [
           { name: 'About Us', link: '/about' },
-          { name: 'Careers', link: '/careers' },
-          { name: 'Press', link: '/press' },
-          { name: 'Blog', link: '/blog' }
+          { name: 'Shop', link: '/shop' },
+          { name: 'Contact Us', link: '/contact' }
         ]
       },
       {
         title: 'Support',
         links: [
-          { name: 'Contact Us', link: '/contact' },
           { name: 'FAQ', link: '/faq' },
-          { name: 'Shipping & Returns', link: '/shipping-returns' },
-          { name: 'Size Guide', link: '/size-guide' }
+          { name: 'My Account', link: '/account' },
+          { name: 'Policies', link: '/policies' }
         ]
       }
     ]
@@ -53,7 +51,9 @@ const footerConfig = {
       phone: '(555) 123-4567'
     }
   }
+  
 };
+
 
 async function seedFooterData() {
   try {

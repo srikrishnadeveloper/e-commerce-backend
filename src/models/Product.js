@@ -34,13 +34,13 @@ const productSchema = new Schema({
     required: true
   },
   
-  // Images - array of file paths for product images
+  // Images - array of file paths for product images (default/gallery images)
   images: [{
     type: String,
     required: true
   }],
   
-  // Color options
+  // Color options with images (for color-specific product images like Amazon/Flipkart)
   colors: [{
     name: {
       type: String,
@@ -49,13 +49,39 @@ const productSchema = new Schema({
     value: {
       type: String,
       required: true
-    }
+    },
+    images: [{
+      type: String
+    }] // Array of image URLs for this color variant
   }],
   
-  // Size options
+  // Size options with individual pricing (for size-specific pricing)
   sizes: [{
     type: String,
     required: true
+  }],
+  
+  // Size variants with pricing - more detailed size options
+  sizeVariants: [{
+    size: {
+      type: String,
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true
+    },
+    originalPrice: {
+      type: Number
+    },
+    inStock: {
+      type: Boolean,
+      default: true
+    },
+    stockQuantity: {
+      type: Number,
+      default: 0
+    }
   }],
   
   // Inventory and ratings

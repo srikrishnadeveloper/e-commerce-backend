@@ -91,7 +91,7 @@ const initiatePayment = async (req, res) => {
       paymentId: generatePaymentId(),
       orderId: order._id,
       amount: order.total,
-      currency: 'USD',
+      currency: 'INR',
       paymentMethod,
       status: 'pending',
       createdAt: new Date(),

@@ -179,50 +179,6 @@ const productSchema = new Schema({
   hotDeal: {
     type: Boolean,
     default: false
-  },
-
-  // Shipping information
-  shipping: {
-    standard: {
-      days: {
-        type: String,
-        default: "5-7 business days"
-      },
-      price: {
-        type: String,
-        default: "FREE on orders over $50"
-      }
-    },
-    express: {
-      days: {
-        type: String,
-        default: "2-3 business days"
-      },
-      price: {
-        type: String,
-        default: "$9.99"
-      }
-    },
-    overnight: {
-      days: {
-        type: String,
-        default: "1 business day"
-      },
-      price: {
-        type: String,
-        default: "$19.99"
-      }
-    },
-    international: {
-      days: {
-        type: String,
-        default: "12-25 business days depending on location"
-      },
-      processing: {
-        type: String,
-        default: "Orders are processed within 1-2 business days"
-      }
-    }
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields

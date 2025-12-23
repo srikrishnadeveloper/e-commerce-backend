@@ -40,7 +40,11 @@ const getAllOrders = async (req, res) => {
 
     if (dateFrom || dateTo) {
       filter.createdAt = {};
-      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateFrom) {
+        const startDate = new Date(dateFrom);
+        startDate.setHours(0, 0, 0, 0);
+        filter.createdAt.$gte = startDate;
+      }
       if (dateTo) {
         // Set to end of the day
         const endDate = new Date(dateTo);
@@ -58,21 +62,16 @@ const getAllOrders = async (req, res) => {
     // Handle search - search by order ID, customer name, or email
     let orders;
     let totalOrders;
+    let searchFilter = { ...filter };
 
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      // Remove # prefix if present (users often search with #ORDER_ID format)
+      const searchTerm = search.trim().replace(/^#/, '');
+      const searchRegex = new RegExp(searchTerm, 'i');
       
       // First, try to find by exact order ID
-      if (mongoose.Types.ObjectId.isValid(search)) {
-        filter._id = search;
-        orders = await Order.find(filter)
-          .populate('user', 'name email')
-          .populate('items.product', 'name images')
-          .sort(sortOptions)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean();
-        totalOrders = await Order.countDocuments(filter);
+      if (mongoose.Types.ObjectId.isValid(searchTerm)) {
+        searchFilter._id = searchTerm;
       } else {
         // Search by user name or email - first find matching users
         const matchingUsers = await User.find({
@@ -84,50 +83,68 @@ const getAllOrders = async (req, res) => {
 
         const userIds = matchingUsers.map(u => u._id);
 
-        // Search orders by user IDs or order ID pattern
-        const searchFilter = {
-          ...filter,
-          $or: [
-            { user: { $in: userIds } },
-            // Also try partial order ID match (last 8 chars)
-            ...(search.length >= 4 ? [{
-              _id: { $regex: search, $options: 'i' }
-            }] : [])
-          ]
-        };
-
-        orders = await Order.find(searchFilter)
-          .populate('user', 'name email')
-          .populate('items.product', 'name images')
-          .sort(sortOptions)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .lean();
-        totalOrders = await Order.countDocuments(searchFilter);
+        // For order ID search, we need to get all orders and filter by last 8 chars
+        // Since MongoDB ObjectId doesn't support regex well
+        if (searchTerm.length >= 3) {
+          // Get all orders matching current filters, then filter by ID string
+          const allFilteredOrders = await Order.find(filter).select('_id').lean();
+          const searchUpper = searchTerm.toUpperCase();
+          const searchLower = searchTerm.toLowerCase();
+          const matchingOrderIds = allFilteredOrders
+            .filter(o => {
+              const idStr = o._id.toString();
+              const last8 = idStr.slice(-8).toUpperCase();
+              // Match against last 8 chars (displayed format) or full ID
+              return last8.includes(searchUpper) || 
+                     idStr.toLowerCase().includes(searchLower);
+            })
+            .map(o => o._id);
+          
+          // Build search filter with user matches and order ID matches
+          if (userIds.length > 0 || matchingOrderIds.length > 0) {
+            searchFilter = {
+              ...filter,
+              $or: [
+                ...(userIds.length > 0 ? [{ user: { $in: userIds } }] : []),
+                ...(matchingOrderIds.length > 0 ? [{ _id: { $in: matchingOrderIds } }] : [])
+              ]
+            };
+          } else {
+            // No matches, return empty
+            searchFilter = { ...filter, _id: null };
+          }
+        } else if (userIds.length > 0) {
+          searchFilter = { ...filter, user: { $in: userIds } };
+        } else {
+          // No matches found
+          searchFilter = { ...filter, _id: null };
+        }
       }
-    } else {
-      orders = await Order.find(filter)
-        .populate('user', 'name email')
-        .populate('items.product', 'name images')
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-      totalOrders = await Order.countDocuments(filter);
     }
+
+    orders = await Order.find(searchFilter)
+      .populate('user', 'name email')
+      .populate('items.product', 'name images')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+    totalOrders = await Order.countDocuments(searchFilter);
 
     console.log('Orders found:', orders.length);
 
     const totalPages = Math.ceil(totalOrders / parseInt(limit));
 
-    // Simplified summary statistics
+    // Get summary statistics for ALL orders (not filtered)
     const allOrders = await Order.find({}).lean();
     const statusCounts = {};
     const paymentCounts = {};
+    let totalRevenue = 0;
 
     allOrders.forEach(order => {
       statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
       paymentCounts[order.paymentStatus] = (paymentCounts[order.paymentStatus] || 0) + 1;
+      totalRevenue += order.total || 0;
     });
 
     console.log('Sending response');
@@ -145,7 +162,9 @@ const getAllOrders = async (req, res) => {
         },
         summary: {
           statusCounts,
-          paymentCounts
+          paymentCounts,
+          totalRevenue,
+          totalAllOrders: allOrders.length
         }
       }
     });
@@ -433,7 +452,7 @@ const updateOrderStatus = async (req, res) => {
 const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { paymentStatus, notes } = req.body;
+    const { paymentStatus, notes, refundAmount } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -461,12 +480,24 @@ const updatePaymentStatus = async (req, res) => {
     const oldPaymentStatus = order.paymentStatus;
     order.paymentStatus = paymentStatus;
 
+    // If refunding, update refund info
+    if (paymentStatus === 'refunded') {
+      order.refundInfo = {
+        amount: refundAmount || order.total,
+        processedAt: new Date(),
+        refundMethod: 'manual'
+      };
+      order.refundedAt = new Date();
+      order.refundAmount = refundAmount || order.total;
+    }
+
     // Add timeline entry
     if (!order.timeline) order.timeline = [];
     order.timeline.push({
       action: 'Payment Status Updated',
       details: notes || `Payment status changed from ${oldPaymentStatus} to ${paymentStatus}`,
       performedAt: new Date(),
+      performedBy: 'Admin',
       oldValue: oldPaymentStatus,
       newValue: paymentStatus
     });

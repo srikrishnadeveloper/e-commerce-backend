@@ -75,29 +75,40 @@ const getCustomers = async (req, res) => {
       }
     }
 
-    // Build sort object
+    // Build sort object for database fields
     const sort = {};
-    if (sortBy === 'createdAt') {
-      sort._id = sortOrder === 'asc' ? 1 : -1;
+    const isCalculatedField = ['totalSpent', 'orderCount', 'averageOrderValue'].includes(sortBy);
+    
+    if (!isCalculatedField) {
+      if (sortBy === 'createdAt') {
+        sort._id = sortOrder === 'asc' ? 1 : -1;
+      } else {
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      }
     } else {
-      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      // Default sort by _id for calculated fields (we'll sort after calculation)
+      sort._id = -1;
     }
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Get customers with basic info
+    // For calculated field sorting, we need to fetch more data and sort afterwards
+    const fetchLimit = isCalculatedField ? 1000 : parseInt(limit); // Fetch more for sorting
+    const fetchSkip = isCalculatedField ? 0 : skip;
+
     const customers = await User.find(filter)
       .select('-password -passwordResetToken -passwordResetExpires')
       .sort(sort)
-      .skip(skip)
-      .limit(parseInt(limit));
+      .skip(fetchSkip)
+      .limit(fetchLimit);
 
     // Get total count for pagination
     const totalCustomers = await User.countDocuments(filter);
 
     // Calculate additional metrics for each customer
-    const customersWithMetrics = await Promise.all(
+    let customersWithMetrics = await Promise.all(
       customers.map(async (customer) => {
         const metrics = await calculateCustomerMetrics(customer._id);
         return {
@@ -105,12 +116,23 @@ const getCustomers = async (req, res) => {
           name: customer.name,
           email: customer.email,
           registrationDate: customer._id.getTimestamp(),
-          wishlistCount: customer.wishlist.length,
-          cartCount: customer.cart.length,
+          wishlistCount: customer.wishlist?.length || 0,
+          cartCount: customer.cart?.length || 0,
           ...metrics
         };
       })
     );
+
+    // Sort by calculated field if needed
+    if (isCalculatedField) {
+      customersWithMetrics.sort((a, b) => {
+        const aVal = a[sortBy] || 0;
+        const bVal = b[sortBy] || 0;
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      });
+      // Apply pagination after sorting
+      customersWithMetrics = customersWithMetrics.slice(skip, skip + parseInt(limit));
+    }
 
     // Calculate filter statistics
     const [totalWithWishlist, totalWithCart] = await Promise.all([

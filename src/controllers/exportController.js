@@ -68,21 +68,12 @@ exports.exportOrders = async (req, res) => {
       customerEmail: order.user?.email || order.guestEmail || '',
       status: order.status,
       paymentStatus: order.paymentStatus,
-      paymentMethod: order.paymentMethod,
-      subtotal: order.subtotal,
-      tax: order.tax,
-      shippingCost: order.shippingCost,
-      discount: order.discount || 0,
       total: order.total,
       itemCount: order.items?.length || 0,
       items: order.items?.map(i => `${i.name || i.product?.name} x${i.quantity}`).join('; ') || '',
       shippingCity: order.shippingAddress?.city || '',
       shippingState: order.shippingAddress?.state || '',
-      shippingCountry: order.shippingAddress?.country || '',
-      trackingNumber: order.shippingInfo?.trackingNumber || '',
-      carrier: order.shippingInfo?.carrier || '',
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt
+      createdAt: order.createdAt
     }));
 
     const columns = [
@@ -91,21 +82,12 @@ exports.exportOrders = async (req, res) => {
       { key: 'customerEmail', label: 'Customer Email' },
       { key: 'status', label: 'Status' },
       { key: 'paymentStatus', label: 'Payment Status' },
-      { key: 'paymentMethod', label: 'Payment Method' },
-      { key: 'subtotal', label: 'Subtotal' },
-      { key: 'tax', label: 'Tax' },
-      { key: 'shippingCost', label: 'Shipping' },
-      { key: 'discount', label: 'Discount' },
       { key: 'total', label: 'Total' },
       { key: 'itemCount', label: 'Item Count' },
       { key: 'items', label: 'Items' },
       { key: 'shippingCity', label: 'City' },
       { key: 'shippingState', label: 'State' },
-      { key: 'shippingCountry', label: 'Country' },
-      { key: 'trackingNumber', label: 'Tracking Number' },
-      { key: 'carrier', label: 'Carrier' },
-      { key: 'createdAt', label: 'Created At' },
-      { key: 'updatedAt', label: 'Updated At' }
+      { key: 'createdAt', label: 'Created At' }
     ];
 
     if (format === 'json') {
@@ -136,20 +118,14 @@ exports.exportOrders = async (req, res) => {
 // @access  Admin
 exports.exportCustomers = async (req, res) => {
   try {
-    const { startDate, endDate, format = 'csv' } = req.query;
+    const { format = 'csv' } = req.query;
 
-    // Build query
-    const query = {};
-    
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
-    }
+    // Build query - exclude admins (note: date filters removed as User model doesn't have timestamps)
+    const query = { role: { $ne: 'admin' } };
 
     // Fetch users
     const users = await User.find(query)
-      .select('-password -passwordConfirm -passwordResetToken -passwordResetExpires')
+      .select('name email phone')
       .lean();
 
     // Get order stats for each customer
@@ -160,8 +136,7 @@ exports.exportCustomers = async (req, res) => {
         $group: {
           _id: '$user',
           totalOrders: { $sum: 1 },
-          totalSpent: { $sum: '$total' },
-          lastOrderDate: { $max: '$createdAt' }
+          totalSpent: { $sum: '$total' }
         }
       }
     ]);
@@ -175,28 +150,20 @@ exports.exportCustomers = async (req, res) => {
     const exportData = users.map(user => {
       const stats = orderStatsMap[user._id.toString()] || {};
       return {
-        name: user.name,
-        email: user.email,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
         totalOrders: stats.totalOrders || 0,
-        totalSpent: stats.totalSpent || 0,
-        lastOrderDate: stats.lastOrderDate || '',
-        addressCount: user.addresses?.length || 0,
-        wishlistCount: user.wishlist?.length || 0,
-        cartItemCount: user.cart?.length || 0,
-        createdAt: user.createdAt
+        totalSpent: (stats.totalSpent || 0).toFixed(2)
       };
     });
 
     const columns = [
       { key: 'name', label: 'Name' },
       { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Phone' },
       { key: 'totalOrders', label: 'Total Orders' },
-      { key: 'totalSpent', label: 'Total Spent' },
-      { key: 'lastOrderDate', label: 'Last Order Date' },
-      { key: 'addressCount', label: 'Addresses' },
-      { key: 'wishlistCount', label: 'Wishlist Items' },
-      { key: 'cartItemCount', label: 'Cart Items' },
-      { key: 'createdAt', label: 'Registered At' }
+      { key: 'totalSpent', label: 'Total Spent' }
     ];
 
     if (format === 'json') {
@@ -240,49 +207,25 @@ exports.exportProducts = async (req, res) => {
       .populate('categoryId', 'name')
       .lean();
 
-    // Transform data for export
+    // Transform data for export - simplified with only useful fields
     const exportData = products.map(product => ({
       name: product.name,
       category: product.category || product.categoryId?.name || '',
       price: product.price,
-      originalPrice: product.originalPrice || '',
       inStock: product.inStock ? 'Yes' : 'No',
       stockQuantity: product.stockQuantity || 0,
-      reservedQuantity: product.reservedQuantity || 0,
-      availableQuantity: (product.stockQuantity || 0) - (product.reservedQuantity || 0),
       rating: product.rating || 0,
-      reviews: product.reviews || 0,
-      bestseller: product.bestseller ? 'Yes' : 'No',
-      featured: product.featured ? 'Yes' : 'No',
-      hasVariants: product.hasVariants ? 'Yes' : 'No',
-      variantCount: product.variants?.length || 0,
-      colors: product.colors?.map(c => c.name).join('; ') || '',
-      sizes: product.sizes?.join('; ') || '',
-      tags: product.tags?.join('; ') || '',
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt
+      reviews: product.reviews || 0
     }));
 
     const columns = [
       { key: 'name', label: 'Product Name' },
       { key: 'category', label: 'Category' },
       { key: 'price', label: 'Price' },
-      { key: 'originalPrice', label: 'Original Price' },
       { key: 'inStock', label: 'In Stock' },
       { key: 'stockQuantity', label: 'Stock Qty' },
-      { key: 'reservedQuantity', label: 'Reserved Qty' },
-      { key: 'availableQuantity', label: 'Available Qty' },
       { key: 'rating', label: 'Rating' },
-      { key: 'reviews', label: 'Reviews' },
-      { key: 'bestseller', label: 'Bestseller' },
-      { key: 'featured', label: 'Featured' },
-      { key: 'hasVariants', label: 'Has Variants' },
-      { key: 'variantCount', label: 'Variant Count' },
-      { key: 'colors', label: 'Colors' },
-      { key: 'sizes', label: 'Sizes' },
-      { key: 'tags', label: 'Tags' },
-      { key: 'createdAt', label: 'Created At' },
-      { key: 'updatedAt', label: 'Updated At' }
+      { key: 'reviews', label: 'Reviews' }
     ];
 
     if (format === 'json') {
@@ -316,31 +259,14 @@ exports.exportSalesReport = async (req, res) => {
     const { 
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       endDate = new Date(),
-      groupBy = 'daily',
       format = 'csv'
     } = req.query;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Determine grouping
-    let dateFormat;
-    switch (groupBy) {
-      case 'hourly':
-        dateFormat = '%Y-%m-%d %H:00';
-        break;
-      case 'daily':
-        dateFormat = '%Y-%m-%d';
-        break;
-      case 'weekly':
-        dateFormat = '%Y-W%V';
-        break;
-      case 'monthly':
-        dateFormat = '%Y-%m';
-        break;
-      default:
-        dateFormat = '%Y-%m-%d';
-    }
+    // Use daily grouping
+    const dateFormat = '%Y-%m-%d';
 
     const salesPipeline = [
       {
@@ -356,15 +282,7 @@ exports.exportSalesReport = async (req, res) => {
           },
           totalOrders: { $sum: 1 },
           totalRevenue: { $sum: '$total' },
-          totalTax: { $sum: '$tax' },
-          totalShipping: { $sum: '$shippingCost' },
-          averageOrderValue: { $avg: '$total' },
-          paidOrders: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'paid'] }, 1, 0] }
-          },
-          pendingOrders: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] }
-          }
+          averageOrderValue: { $avg: '$total' }
         }
       },
       {
@@ -376,40 +294,30 @@ exports.exportSalesReport = async (req, res) => {
 
     // Transform data for export
     const exportData = salesData.map(item => ({
-      period: item._id,
-      totalOrders: item.totalOrders,
-      totalRevenue: item.totalRevenue.toFixed(2),
-      totalTax: item.totalTax.toFixed(2),
-      totalShipping: item.totalShipping.toFixed(2),
-      averageOrderValue: item.averageOrderValue.toFixed(2),
-      paidOrders: item.paidOrders,
-      pendingOrders: item.pendingOrders
+      date: item._id,
+      orders: item.totalOrders,
+      revenue: item.totalRevenue.toFixed(2),
+      avgOrderValue: item.averageOrderValue.toFixed(2)
     }));
 
     // Add summary row
+    const totalOrders = exportData.reduce((sum, row) => sum + row.orders, 0);
+    const totalRevenue = exportData.reduce((sum, row) => sum + parseFloat(row.revenue), 0);
+    
     const summary = {
-      period: 'TOTAL',
-      totalOrders: exportData.reduce((sum, row) => sum + row.totalOrders, 0),
-      totalRevenue: exportData.reduce((sum, row) => sum + parseFloat(row.totalRevenue), 0).toFixed(2),
-      totalTax: exportData.reduce((sum, row) => sum + parseFloat(row.totalTax), 0).toFixed(2),
-      totalShipping: exportData.reduce((sum, row) => sum + parseFloat(row.totalShipping), 0).toFixed(2),
-      averageOrderValue: (exportData.reduce((sum, row) => sum + parseFloat(row.totalRevenue), 0) / 
-        exportData.reduce((sum, row) => sum + row.totalOrders, 0) || 0).toFixed(2),
-      paidOrders: exportData.reduce((sum, row) => sum + row.paidOrders, 0),
-      pendingOrders: exportData.reduce((sum, row) => sum + row.pendingOrders, 0)
+      date: 'TOTAL',
+      orders: totalOrders,
+      revenue: totalRevenue.toFixed(2),
+      avgOrderValue: totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : '0.00'
     };
     
     exportData.push(summary);
 
     const columns = [
-      { key: 'period', label: 'Period' },
-      { key: 'totalOrders', label: 'Total Orders' },
-      { key: 'totalRevenue', label: 'Total Revenue' },
-      { key: 'totalTax', label: 'Total Tax' },
-      { key: 'totalShipping', label: 'Total Shipping' },
-      { key: 'averageOrderValue', label: 'Avg Order Value' },
-      { key: 'paidOrders', label: 'Paid Orders' },
-      { key: 'pendingOrders', label: 'Pending Orders' }
+      { key: 'date', label: 'Date' },
+      { key: 'orders', label: 'Orders' },
+      { key: 'revenue', label: 'Revenue' },
+      { key: 'avgOrderValue', label: 'Avg Order Value' }
     ];
 
     if (format === 'json') {
@@ -417,12 +325,11 @@ exports.exportSalesReport = async (req, res) => {
         status: 'success',
         count: exportData.length,
         period: { startDate: start, endDate: end },
-        groupBy,
         data: exportData
       });
     } else {
       const csv = convertToCSV(exportData, columns);
-      const filename = `sales_report_${groupBy}_${new Date().toISOString().split('T')[0]}.csv`;
+      const filename = `sales_report_${new Date().toISOString().split('T')[0]}.csv`;
       
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -455,21 +362,21 @@ exports.getExportTypes = async (req, res) => {
         name: 'Customers',
         description: 'Export customer list with order statistics',
         endpoint: '/api/export/customers',
-        filters: ['startDate', 'endDate']
+        filters: []
       },
       {
         id: 'products',
         name: 'Products',
         description: 'Export product catalog with inventory details',
         endpoint: '/api/export/products',
-        filters: ['category', 'inStock']
+        filters: ['inStock']
       },
       {
         id: 'sales',
         name: 'Sales Report',
         description: 'Export sales analytics by time period',
         endpoint: '/api/export/sales',
-        filters: ['startDate', 'endDate', 'groupBy']
+        filters: ['startDate', 'endDate']
       }
     ];
 

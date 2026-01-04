@@ -260,7 +260,7 @@ productSchema.statics.searchProducts = function(query) {
 
 // Instance method to format price
 productSchema.methods.getFormattedPrice = function() {
-  return `$${this.price.toFixed(2)}`;
+  return `₹${this.price.toFixed(2)}`;
 };
 
 // Instance method to get primary image

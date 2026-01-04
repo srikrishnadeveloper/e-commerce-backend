@@ -208,7 +208,7 @@ const processPayment = async (req, res) => {
     if (!order.timeline) order.timeline = [];
     order.timeline.push({
       action: 'Payment Received',
-      details: `Payment of $${order.total.toFixed(2)} received via ${order.paymentInfo.method}`,
+      details: `Payment of ₹${order.total.toFixed(2)} received via ${order.paymentInfo.method}`,
       performedAt: new Date(),
       performedBy: 'System'
     });
@@ -230,7 +230,7 @@ const processPayment = async (req, res) => {
                 <h3>Payment Details</h3>
                 <p><strong>Order #:</strong> ${order._id.toString().slice(-8)}</p>
                 <p><strong>Transaction ID:</strong> ${transactionId}</p>
-                <p><strong>Amount:</strong> $${order.total.toFixed(2)}</p>
+                <p><strong>Amount:</strong> ₹${order.total.toFixed(2)}</p>
                 <p><strong>Payment Method:</strong> ${order.paymentInfo.method}</p>
                 <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
               </div>

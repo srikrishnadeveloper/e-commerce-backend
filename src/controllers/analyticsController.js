@@ -35,11 +35,13 @@ const getRevenueAnalytics = async (req, res) => {
     const { 
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       endDate = new Date(),
-      granularity = 'daily'
+      granularity = 'daily',
+      originalRevenue = 'false'
     } = req.query;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const useOriginalRevenue = originalRevenue === 'true';
 
     // Time series revenue data
     let groupBy;

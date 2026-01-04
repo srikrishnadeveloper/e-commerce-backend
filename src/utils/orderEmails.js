@@ -1,7 +1,54 @@
 const { sendEmail } = require('./email');
+const SiteConfig = require('../models/SiteConfig');
+
+// Helper function to get site branding config with fallback
+const getSiteBranding = async () => {
+  try {
+    const siteConfig = await SiteConfig.findOne({ key: 'all' }).lean();
+    if (siteConfig?.config) {
+      // Extract company name from various possible sources
+      let companyName = 'Our Store';
+      
+      // Try to get from branding.name first
+      if (siteConfig.config.branding?.name) {
+        companyName = siteConfig.config.branding.name;
+      } 
+      // Try to extract from logo alt text
+      else if (siteConfig.config.branding?.logo?.alt) {
+        // Extract "TechCart" from "TechCart Logo"
+        companyName = siteConfig.config.branding.logo.alt.replace(/\s+Logo$/i, '').trim();
+      }
+      // Try to extract from footer copyright
+      else if (siteConfig.config.footer?.copyright) {
+        // Extract company name from copyright string like "© 2024 TechCart. All Rights Reserved."
+        const match = siteConfig.config.footer.copyright.match(/©\s*\d{4}\s+([^.]+)\./);
+        if (match && match[1]) {
+          companyName = match[1].replace(/All Rights Reserved$/i, '').trim();
+        }
+      }
+      
+      return {
+        companyName,
+        logo: siteConfig.config.branding?.logo?.light || '',
+        primaryColor: siteConfig.config.branding?.colors?.primary || '#3b82f6',
+        supportEmail: siteConfig.config.company?.contact?.email || siteConfig.config.contact?.email || 'support@store.com'
+      };
+    }
+  } catch (error) {
+    // Fallback to defaults if config fetch fails
+  }
+  
+  return {
+    companyName: 'Our Store',
+    logo: '',
+    primaryColor: '#3b82f6',
+    supportEmail: 'support@store.com'
+  };
+};
 
 // Order confirmation email
 const sendOrderConfirmationEmail = async (user, order) => {
+  const branding = await getSiteBranding();
   const subject = `Order Confirmation - Order #${order._id.toString().slice(-8)}`;
 
   // Calculate estimated delivery date (5-7 business days)
@@ -20,8 +67,8 @@ const sendOrderConfirmationEmail = async (user, order) => {
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
 
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px; font-weight: 300;">E-Commerce Store</h1>
+        <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 300;">${branding.companyName}</h1>
           <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Order Confirmation</p>
         </div>
 
@@ -47,7 +94,7 @@ const sendOrderConfirmationEmail = async (user, order) => {
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666; font-size: 14px;">Order Total:</td>
-                <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 16px; text-align: right;">$${order.total.toFixed(2)}</td>
+                <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 16px; text-align: right;">₹${order.total.toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666; font-size: 14px;">Status:</td>
@@ -73,11 +120,11 @@ const sendOrderConfirmationEmail = async (user, order) => {
                   <div style="flex: 1;">
                     <h4 style="margin: 0 0 8px 0; color: #333; font-size: 16px; font-weight: 500;">${item.name}</h4>
                     <p style="margin: 0; color: #666; font-size: 14px;">
-                      Quantity: ${item.quantity} × $${item.price.toFixed(2)}
+                      Quantity: ${item.quantity} × ₹${item.price.toFixed(2)}
                     </p>
                   </div>
                   <div style="text-align: right;">
-                    <p style="margin: 0; color: #333; font-weight: 600; font-size: 16px;">$${item.itemTotal.toFixed(2)}</p>
+                    <p style="margin: 0; color: #333; font-weight: 600; font-size: 16px;">₹${item.itemTotal.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -89,17 +136,17 @@ const sendOrderConfirmationEmail = async (user, order) => {
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0; color: #666; font-size: 14px;">Subtotal:</td>
-                <td style="padding: 8px 0; color: #333; font-weight: 500; text-align: right;">$${order.subtotal.toFixed(2)}</td>
+                <td style="padding: 8px 0; color: #333; font-weight: 500; text-align: right;">₹${order.subtotal.toFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #666; font-size: 14px;">Shipping:</td>
                 <td style="padding: 8px 0; color: #333; font-weight: 500; text-align: right;">
-                  ${order.shipping === 0 ? '<span style="color: #28a745;">FREE</span>' : '$' + order.shipping.toFixed(2)}
+                  ${order.shipping === 0 ? '<span style="color: #28a745;">FREE</span>' : '₹' + order.shipping.toFixed(2)}
                 </td>
               </tr>
               <tr style="border-top: 2px solid #333;">
                 <td style="padding: 15px 0 8px 0; color: #333; font-size: 16px; font-weight: 600;">Total:</td>
-                <td style="padding: 15px 0 8px 0; color: #333; font-weight: 700; font-size: 18px; text-align: right;">$${order.total.toFixed(2)}</td>
+                <td style="padding: 15px 0 8px 0; color: #333; font-weight: 700; font-size: 18px; text-align: right;">₹${order.total.toFixed(2)}</td>
               </tr>
             </table>
           </div>
@@ -122,7 +169,7 @@ const sendOrderConfirmationEmail = async (user, order) => {
           ` : ''}
 
           <!-- Next Steps -->
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; padding: 25px; margin: 30px 0; text-align: center;">
+          <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; border-radius: 8px; padding: 25px; margin: 30px 0; text-align: center;">
             <h3 style="margin: 0 0 15px 0; font-size: 18px; font-weight: 500;">What's Next?</h3>
             <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; opacity: 0.9;">
               We're preparing your order for shipment. You'll receive an email with tracking information once your order is on its way.
@@ -138,14 +185,14 @@ const sendOrderConfirmationEmail = async (user, order) => {
           </div>
 
           <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0; text-align: center;">
-            Thank you for choosing E-Commerce Store! If you have any questions about your order, please don't hesitate to contact our customer support team.
+            Thank you for choosing ${branding.companyName}! If you have any questions about your order, please don't hesitate to contact our customer support team.
           </p>
         </div>
 
         <!-- Footer -->
         <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
           <p style="margin: 0; color: #666; font-size: 12px;">
-            © 2024 E-Commerce Store. All rights reserved.<br>
+            © ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.<br>
             This email was sent to ${user.email}
           </p>
         </div>
@@ -164,6 +211,7 @@ const sendOrderConfirmationEmail = async (user, order) => {
 
 // Order status update email
 const sendOrderStatusUpdateEmail = async (user, order, oldStatus, newStatus) => {
+  const branding = await getSiteBranding();
   const subject = `Order Update - Order #${order._id.toString().slice(-8)}`;
   
   let statusMessage = '';
@@ -194,19 +242,33 @@ const sendOrderStatusUpdateEmail = async (user, order, oldStatus, newStatus) => 
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Order Status Update</h2>
-      <p>Hi ${user.name},</p>
-      <p>${statusMessage}</p>
-      
-      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3>Order #${order._id.toString().slice(-8)}</h3>
-        <p><strong>Status:</strong> ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}</p>
-        <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
-        ${order.shippingInfo?.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.shippingInfo.trackingNumber}</p>` : ''}
+      <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 300;">${branding.companyName}</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Order Status Update</p>
       </div>
       
-      <p>${nextSteps}</p>
-      <p>Thank you for shopping with us!</p>
+      <div style="padding: 30px 20px;">
+        <h2 style="color: #333;">Order Status Update</h2>
+        <p>Hi ${user.name},</p>
+        <p>${statusMessage}</p>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Order #${order._id.toString().slice(-8)}</h3>
+          <p><strong>Status:</strong> ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}</p>
+          <p><strong>Total:</strong> ₹${order.total.toFixed(2)}</p>
+          ${order.shippingInfo?.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.shippingInfo.trackingNumber}</p>` : ''}
+        </div>
+        
+        <p>${nextSteps}</p>
+        <p>Thank you for shopping with ${branding.companyName}!</p>
+      </div>
+      
+      <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+        <p style="margin: 0; color: #666; font-size: 12px;">
+          © ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.<br>
+          This email was sent to ${user.email}
+        </p>
+      </div>
     </div>
   `;
   
@@ -220,33 +282,48 @@ const sendOrderStatusUpdateEmail = async (user, order, oldStatus, newStatus) => 
 
 // Shipping notification email
 const sendShippingNotificationEmail = async (user, order) => {
+  const branding = await getSiteBranding();
   const subject = `Your Order Has Shipped - Order #${order._id.toString().slice(-8)}`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Your Order Has Shipped!</h2>
-      <p>Hi ${user.name},</p>
-      <p>Great news! Your order is on its way to you.</p>
-      
-      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3>Order #${order._id.toString().slice(-8)}</h3>
-        <p><strong>Shipped Date:</strong> ${new Date(order.shippingInfo.shippedAt).toLocaleDateString()}</p>
-        ${order.shippingInfo.carrier ? `<p><strong>Carrier:</strong> ${order.shippingInfo.carrier}</p>` : ''}
-        ${order.shippingInfo.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.shippingInfo.trackingNumber}</p>` : ''}
-        ${order.shippingInfo.estimatedDelivery ? `<p><strong>Estimated Delivery:</strong> ${new Date(order.shippingInfo.estimatedDelivery).toLocaleDateString()}</p>` : ''}
+      <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 300;">${branding.companyName}</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Your Order Has Shipped!</p>
       </div>
       
-      ${order.shippingInfo.trackingUrl ? `<p><a href="${order.shippingInfo.trackingUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Track Your Package</a></p>` : ''}
-      
-      <p>Your package will be delivered to:</p>
-      <div style="background: #f0f0f0; padding: 15px; border-radius: 5px;">
-        <p>${order.shippingAddress.fullName}<br>
-        ${order.shippingAddress.addressLine1}<br>
-        ${order.shippingAddress.addressLine2 ? order.shippingAddress.addressLine2 + '<br>' : ''}
-        ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}</p>
+      <div style="padding: 30px 20px;">
+        <h2 style="color: #333;">Your Order Has Shipped!</h2>
+        <p>Hi ${user.name},</p>
+        <p>Great news! Your order is on its way to you.</p>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Order #${order._id.toString().slice(-8)}</h3>
+          <p><strong>Shipped Date:</strong> ${new Date(order.shippingInfo.shippedAt).toLocaleDateString()}</p>
+          ${order.shippingInfo.carrier ? `<p><strong>Carrier:</strong> ${order.shippingInfo.carrier}</p>` : ''}
+          ${order.shippingInfo.trackingNumber ? `<p><strong>Tracking Number:</strong> ${order.shippingInfo.trackingNumber}</p>` : ''}
+          ${order.shippingInfo.estimatedDelivery ? `<p><strong>Estimated Delivery:</strong> ${new Date(order.shippingInfo.estimatedDelivery).toLocaleDateString()}</p>` : ''}
+        </div>
+        
+        ${order.shippingInfo.trackingUrl ? `<p><a href="${order.shippingInfo.trackingUrl}" style="background: ${branding.primaryColor}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Track Your Package</a></p>` : ''}
+        
+        <p>Your package will be delivered to:</p>
+        <div style="background: #f0f0f0; padding: 15px; border-radius: 5px;">
+          <p>${order.shippingAddress.fullName}<br>
+          ${order.shippingAddress.addressLine1}<br>
+          ${order.shippingAddress.addressLine2 ? order.shippingAddress.addressLine2 + '<br>' : ''}
+          ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}</p>
+        </div>
+        
+        <p>Thank you for choosing ${branding.companyName}!</p>
       </div>
       
-      <p>Thank you for your business!</p>
+      <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+        <p style="margin: 0; color: #666; font-size: 12px;">
+          © ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.<br>
+          This email was sent to ${user.email}
+        </p>
+      </div>
     </div>
   `;
   
@@ -260,24 +337,39 @@ const sendShippingNotificationEmail = async (user, order) => {
 
 // Order cancellation email
 const sendOrderCancellationEmail = async (user, order, reason) => {
+  const branding = await getSiteBranding();
   const subject = `Order Cancelled - Order #${order._id.toString().slice(-8)}`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Order Cancellation</h2>
-      <p>Hi ${user.name},</p>
-      <p>Your order has been cancelled as requested.</p>
-      
-      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3>Order #${order._id.toString().slice(-8)}</h3>
-        <p><strong>Cancelled Date:</strong> ${new Date().toLocaleDateString()}</p>
-        <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
-        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+      <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 300;">${branding.companyName}</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Order Cancellation</p>
       </div>
       
-      <p>If you paid for this order, a refund will be processed within 3-5 business days.</p>
-      <p>If you have any questions, please contact our support team.</p>
-      <p>Thank you for your understanding.</p>
+      <div style="padding: 30px 20px;">
+        <h2 style="color: #333;">Order Cancellation</h2>
+        <p>Hi ${user.name},</p>
+        <p>Your order has been cancelled as requested.</p>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Order #${order._id.toString().slice(-8)}</h3>
+          <p><strong>Cancelled Date:</strong> ${new Date().toLocaleDateString()}</p>
+          <p><strong>Total:</strong> ₹${order.total.toFixed(2)}</p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+        </div>
+        
+        <p>If you paid for this order, a refund will be processed within 3-5 business days.</p>
+        <p>If you have any questions, please contact our support team.</p>
+        <p>Thank you for your understanding.</p>
+      </div>
+      
+      <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+        <p style="margin: 0; color: #666; font-size: 12px;">
+          © ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.<br>
+          This email was sent to ${user.email}
+        </p>
+      </div>
     </div>
   `;
   
@@ -291,24 +383,39 @@ const sendOrderCancellationEmail = async (user, order, reason) => {
 
 // Delivery confirmation email
 const sendDeliveryConfirmationEmail = async (user, order) => {
+  const branding = await getSiteBranding();
   const subject = `Order Delivered - Order #${order._id.toString().slice(-8)}`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Order Delivered!</h2>
-      <p>Hi ${user.name},</p>
-      <p>Great news! Your order has been successfully delivered.</p>
-      
-      <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3>Order #${order._id.toString().slice(-8)}</h3>
-        <p><strong>Delivered Date:</strong> ${new Date(order.shippingInfo.actualDelivery || new Date()).toLocaleDateString()}</p>
-        <p><strong>Total:</strong> $${order.total.toFixed(2)}</p>
+      <div style="background: linear-gradient(135deg, ${branding.primaryColor} 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center;">
+        <h1 style="margin: 0; font-size: 28px; font-weight: 300;">${branding.companyName}</h1>
+        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Order Delivered!</p>
       </div>
       
-      <p>We hope you love your purchase! Please consider leaving a review to help other customers.</p>
-      <p><a href="#" style="background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Leave a Review</a></p>
+      <div style="padding: 30px 20px;">
+        <h2 style="color: #333;">Order Delivered!</h2>
+        <p>Hi ${user.name},</p>
+        <p>Great news! Your order has been successfully delivered.</p>
+        
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Order #${order._id.toString().slice(-8)}</h3>
+          <p><strong>Delivered Date:</strong> ${new Date(order.shippingInfo.actualDelivery || new Date()).toLocaleDateString()}</p>
+          <p><strong>Total:</strong> ₹${order.total.toFixed(2)}</p>
+        </div>
+        
+        <p>We hope you love your purchase! Please consider leaving a review to help other customers.</p>
+        <p><a href="#" style="background: ${branding.primaryColor}; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Leave a Review</a></p>
+        
+        <p>Thank you for choosing ${branding.companyName}!</p>
+      </div>
       
-      <p>Thank you for choosing us!</p>
+      <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+        <p style="margin: 0; color: #666; font-size: 12px;">
+          © ${new Date().getFullYear()} ${branding.companyName}. All rights reserved.<br>
+          This email was sent to ${user.email}
+        </p>
+      </div>
     </div>
   `;
   

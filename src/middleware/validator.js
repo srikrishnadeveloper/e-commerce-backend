@@ -193,30 +193,6 @@ const validateReview = [
   handleValidationErrors
 ];
 
-// ============ COUPON VALIDATIONS ============
-
-const validateCoupon = [
-  body('code')
-    .trim()
-    .notEmpty().withMessage('Coupon code is required')
-    .isLength({ min: 3, max: 20 }).withMessage('Code must be 3-20 characters')
-    .matches(/^[A-Z0-9]+$/).withMessage('Code must be uppercase alphanumeric'),
-  
-  body('discountType')
-    .notEmpty().withMessage('Discount type is required')
-    .isIn(['percentage', 'fixed']).withMessage('Discount type must be percentage or fixed'),
-  
-  body('discountValue')
-    .notEmpty().withMessage('Discount value is required')
-    .isFloat({ min: 0 }).withMessage('Discount value must be positive'),
-  
-  body('validUntil')
-    .notEmpty().withMessage('Expiry date is required')
-    .isISO8601().withMessage('Invalid date format'),
-  
-  handleValidationErrors
-];
-
 // ============ PRODUCT VALIDATIONS ============
 
 const validateProduct = [
@@ -272,7 +248,6 @@ module.exports = {
   validateAddress,
   validateOrder,
   validateReview,
-  validateCoupon,
   validateProduct,
   validateMongoId,
   validatePagination

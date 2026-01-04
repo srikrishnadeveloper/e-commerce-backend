@@ -95,7 +95,7 @@ class AnalyticsService {
   }
 
   // Revenue analytics
-  static async getRevenueMetrics(startDate, endDate) {
+  static async getRevenueMetrics(startDate, endDate, originalRevenue = false) {
     const pipeline = [
       {
         $match: {
@@ -107,15 +107,15 @@ class AnalyticsService {
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$total' },
+          totalRevenue: { $sum: originalRevenue ? { $sum: '$items.itemTotal' } : '$total' },
           totalOrders: { $sum: 1 },
-          averageOrderValue: { $avg: '$total' },
+          averageOrderValue: { $avg: originalRevenue ? { $avg: '$items.itemTotal' } : '$total' },
           totalShipping: { $sum: '$shipping' },
           totalRefunds: {
             $sum: {
               $cond: [
                 { $eq: ['$paymentStatus', 'refunded'] },
-                '$total',
+                originalRevenue ? { $sum: '$items.itemTotal' } : '$total',
                 0
               ]
             }

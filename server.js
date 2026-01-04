@@ -75,16 +75,18 @@ const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const addressRoutes = require('./src/routes/addressRoutes');
 const paymentRoutes = require('./src/routes/paymentRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
-const couponRoutes = require('./src/routes/couponRoutes');
 const bulkEmailRoutes = require('./src/routes/bulkEmailRoutes');
 const exportRoutes = require('./src/routes/exportRoutes');
 const paymentSettingsRoutes = require('./src/routes/paymentSettingsRoutes');
 const contactRoutes = require('./src/routes/contactRoutes');
+const aboutUsRoutes = require('./src/routes/aboutUsRoutes');
+const adminAuthRoutes = require('./src/routes/adminAuthRoutes');
 
 // Apply stricter rate limiting to auth routes
 app.use('/api/auth/signup', createAccountLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgotPassword', passwordResetLimiter);
+app.use('/api/admin-auth/login', authLimiter);
 
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -101,11 +103,12 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/coupons', couponRoutes);
 app.use('/api/admin/emails', bulkEmailRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/payment-settings', paymentSettingsRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/aboutus', aboutUsRoutes);
+app.use('/api/admin-auth', adminAuthRoutes);
 
 app.all('*', (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

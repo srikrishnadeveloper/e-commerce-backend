@@ -108,9 +108,9 @@ exports.getRecipientGroups = async (req, res) => {
     // Get users with pending orders
     const pendingOrderUsers = await Order.distinct('user', { status: 'pending' });
     
-    // Get users who made purchases above $100
+    // Get users who made purchases above ₹50,000
     const highValueOrders = await Order.aggregate([
-      { $match: { totalAmount: { $gte: 100 } } },
+      { $match: { totalAmount: { $gte: 50000 } } },
       { $group: { _id: '$user' } }
     ]);
     
@@ -136,7 +136,7 @@ exports.getRecipientGroups = async (req, res) => {
       {
         id: 'high_value',
         name: 'High-Value Customers',
-        description: 'Customers with orders above $100',
+        description: 'Customers with orders above ₹50,000',
         count: highValueOrders.length
       }
     ];

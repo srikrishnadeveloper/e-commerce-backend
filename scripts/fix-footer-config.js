@@ -14,11 +14,10 @@ const completeConfig = {
       buttonText: 'Subscribe'
     },
     socialMedia: {
+      youtube: { url: 'https://youtube.com/@techcart', enabled: true },
       facebook: { url: 'https://facebook.com/techcart', enabled: true },
-      twitter: { url: 'https://twitter.com/techcart', enabled: true },
       instagram: { url: 'https://instagram.com/techcart', enabled: true },
-      tiktok: { url: 'https://tiktok.com/@techcart', enabled: true },
-      pinterest: { url: 'https://pinterest.com/techcart', enabled: true }
+      telegram: { url: 'https://t.me/techcart', enabled: true }
     },
     sections: [
       {

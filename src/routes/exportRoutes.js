@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const exportController = require('../controllers/exportController');
-const { protect, restrictTo } = require('../middleware/auth');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 // All routes require admin authentication
-router.use(protect);
-router.use(restrictTo('admin'));
+router.use(protectAdmin);
 
 // Get available export types
 router.get('/types', exportController.getExportTypes);

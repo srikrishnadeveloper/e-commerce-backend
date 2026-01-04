@@ -38,7 +38,7 @@ const createDirectOrder = async (req, res) => {
     // Calculate totals
     const itemTotal = product.price * quantity;
     const subtotal = itemTotal;
-    const shipping = subtotal > 50 ? 0 : 10; // Free shipping over $50
+    const shipping = subtotal > 50 ? 0 : 10; // Free shipping over ₹50
     const total = subtotal + shipping;
 
     // Create order item

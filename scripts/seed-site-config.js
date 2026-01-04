@@ -37,7 +37,7 @@ const siteConfigs = [
       },
       announcementbar: {
         enabled: true,
-        text: 'Free shipping on all orders over $50!',
+        text: 'Free shipping on all orders over ₹50!',
         backgroundColor: '#2c3bc5',
         textColor: '#ffffff',
       },

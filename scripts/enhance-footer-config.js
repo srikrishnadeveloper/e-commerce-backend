@@ -18,7 +18,7 @@ const enhancedFooterConfig = {
         url: '#',
         enabled: true
       },
-      twitter: {
+      youtube: {
         url: '#',
         enabled: true
       },
@@ -26,11 +26,11 @@ const enhancedFooterConfig = {
         url: '#',
         enabled: true
       },
-      tiktok: {
+      telegram: {
         url: '#',
         enabled: true
       },
-      pinterest: {
+      temp_remove: {
         url: '#',
         enabled: true
       }
@@ -117,3 +117,4 @@ async function enhanceFooterConfig() {
 
 // Run the enhancement
 enhanceFooterConfig();
+

@@ -5,13 +5,13 @@ const ContactInquiry = require('../models/ContactInquiry');
 // @access  Public
 exports.submitInquiry = async (req, res) => {
   try {
-    const { name, email, message } = req.body;
+    const { name, email, phone, message } = req.body;
 
     // Validate required fields
-    if (!name || !email || !message) {
+    if (!name || !email || !phone || !message) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide name, email, and message'
+        message: 'Please provide name, email, phone number, and message'
       });
     }
 
@@ -19,6 +19,7 @@ exports.submitInquiry = async (req, res) => {
     const inquiry = await ContactInquiry.create({
       name,
       email,
+      phone,
       message
     });
 

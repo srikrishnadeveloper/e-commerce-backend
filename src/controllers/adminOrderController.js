@@ -792,7 +792,7 @@ const updateOrderItems = async (req, res) => {
       subtotal += item.itemTotal;
     }
 
-    const shipping = subtotal > 50 ? 0 : 10; // Free shipping over $50
+    const shipping = subtotal > 50 ? 0 : 10; // Free shipping over ₹50
     const total = subtotal + shipping;
 
     order.subtotal = subtotal;
@@ -803,7 +803,7 @@ const updateOrderItems = async (req, res) => {
     if (!order.modifications) order.modifications = [];
     order.modifications.push({
       type: 'items_updated',
-      description: `Order items modified. Total changed from $${oldTotal.toFixed(2)} to $${total.toFixed(2)}`,
+      description: `Order items modified. Total changed from ₹${oldTotal.toFixed(2)} to ₹${total.toFixed(2)}`,
       performedAt: new Date(),
       performedBy: adminId,
       oldValue: oldItems,
@@ -814,11 +814,11 @@ const updateOrderItems = async (req, res) => {
     if (!order.timeline) order.timeline = [];
     order.timeline.push({
       action: 'Items Modified',
-      details: `Order items updated. New total: $${total.toFixed(2)}`,
+      details: `Order items updated. New total: ₹${total.toFixed(2)}`,
       performedAt: new Date(),
       performedBy: adminId,
-      oldValue: `$${oldTotal.toFixed(2)}`,
-      newValue: `$${total.toFixed(2)}`
+      oldValue: `₹${oldTotal.toFixed(2)}`,
+      newValue: `₹${total.toFixed(2)}`
     });
 
     await order.save();
@@ -1030,7 +1030,7 @@ const processRefund = async (req, res) => {
     if (!order.timeline) order.timeline = [];
     order.timeline.push({
       action: 'Refund Processed',
-      details: `Refund of $${refundAmount.toFixed(2)} processed. Reference: ${refundReference}`,
+      details: `Refund of ₹${refundAmount.toFixed(2)} processed. Reference: ${refundReference}`,
       performedAt: new Date(),
       performedBy: adminId,
       oldValue: 'paid',
@@ -1059,7 +1059,7 @@ const processRefund = async (req, res) => {
               <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3>Refund Details</h3>
                 <p><strong>Order #:</strong> ${order._id.toString().slice(-8)}</p>
-                <p><strong>Refund Amount:</strong> $${refundAmount.toFixed(2)}</p>
+                <p><strong>Refund Amount:</strong> ₹${refundAmount.toFixed(2)}</p>
                 <p><strong>Refund Reference:</strong> ${refundReference}</p>
                 <p><strong>Refund Method:</strong> ${refundMethod.replace('_', ' ')}</p>
                 ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}

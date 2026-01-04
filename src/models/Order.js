@@ -100,12 +100,6 @@ const orderSchema = new mongoose.Schema(
       },
       verificationNotes: String
     },
-    couponApplied: {
-      code: String,
-      discountType: String,
-      discountValue: Number,
-      discountAmount: Number
-    },
     shippingAddress: {
       fullName: String,
       addressLine1: String,

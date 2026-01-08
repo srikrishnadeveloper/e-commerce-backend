@@ -80,9 +80,8 @@ exports.requireSuperAdmin = (req, res, next) => {
   next();
 };
 
-// Generate JWT token
+// Generate JWT token for admin (no expiration - admin sessions last forever)
 exports.generateAdminToken = (adminId) => {
-  return jwt.sign({ id: adminId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
-  });
+  return jwt.sign({ id: adminId }, process.env.JWT_SECRET);
+  // No expiresIn = token never expires
 };

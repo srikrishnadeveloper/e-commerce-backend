@@ -9,7 +9,8 @@ const {
   getPendingVerifications,
   verifyUPIPayment
 } = require('../controllers/paymentSettingsController');
-const { protect, restrictTo } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 // Public route - get payment mode for frontend
 router.get('/mode', getPaymentMode);
@@ -17,11 +18,11 @@ router.get('/mode', getPaymentMode);
 // Protected route - user submits UPI transaction ID
 router.post('/submit-upi', protect, submitUPITransaction);
 
-// Admin routes
-router.get('/', protect, restrictTo('admin'), getPaymentSettings);
-router.put('/', protect, restrictTo('admin'), updatePaymentSettings);
-router.post('/upload-qr', protect, restrictTo('admin'), uploadQRCode);
-router.get('/pending-verifications', protect, restrictTo('admin'), getPendingVerifications);
-router.post('/verify-payment', protect, restrictTo('admin'), verifyUPIPayment);
+// Admin routes - use protectAdmin for admin authentication
+router.get('/', protectAdmin, getPaymentSettings);
+router.put('/', protectAdmin, updatePaymentSettings);
+router.post('/upload-qr', protectAdmin, uploadQRCode);
+router.get('/pending-verifications', protectAdmin, getPendingVerifications);
+router.post('/verify-payment', protectAdmin, verifyUPIPayment);
 
 module.exports = router;

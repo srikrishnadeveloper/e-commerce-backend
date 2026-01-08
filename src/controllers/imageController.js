@@ -159,13 +159,36 @@ const uploadImages = async (req, res) => {
 };
 
 // @desc    Delete an image from the images directory
-// @route   DELETE /api/images/:filename
+// @route   DELETE /api/images/*
 // @access  Public (for admin interface)
 const deleteImage = async (req, res) => {
   try {
-    const { filename } = req.params;
+    // Get the full path after /api/images/
+    // For wildcard routes, the path is in req.params[0]
+    const filename = req.params[0] || req.params.filename;
+    if (!filename) {
+      return res.status(400).json({
+        success: false,
+        message: 'Filename is required'
+      });
+    }
+    
+    // Decode the filename in case it contains URL-encoded characters
+    const decodedFilename = decodeURIComponent(filename);
     const imagesPath = path.join(__dirname, '..', '..', '..', 'images');
-    const filePath = path.join(imagesPath, filename);
+    
+    // Handle both root images and subdirectory images
+    // The filename can be "image.png" or "subdir/image.png"
+    const filePath = path.join(imagesPath, decodedFilename);
+    
+    // Security check - ensure the path doesn't escape the images directory
+    const normalizedPath = path.normalize(filePath);
+    if (!normalizedPath.startsWith(path.normalize(imagesPath))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file path'
+      });
+    }
 
     // Check if file exists
     try {

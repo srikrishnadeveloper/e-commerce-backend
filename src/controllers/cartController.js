@@ -107,19 +107,21 @@ const addToCart = async (req, res) => {
     let subtotal = 0;
     let totalItems = 0;
 
-    const cartItems = updatedUser.cart.map((item) => {
-      const itemTotal = (item.product.price || 0) * item.quantity;
-      subtotal += itemTotal;
-      totalItems += item.quantity;
-      return {
-        _id: item._id,
-        product: item.product,
-        quantity: item.quantity,
-        selectedColor: item.selectedColor || '',
-        selectedSize: item.selectedSize || '',
-        itemTotal
-      };
-    });
+    const cartItems = updatedUser.cart
+      .filter(item => item.product) // Filter out items with deleted products
+      .map((item) => {
+        const itemTotal = (item.product.price || 0) * item.quantity;
+        subtotal += itemTotal;
+        totalItems += item.quantity;
+        return {
+          _id: item._id,
+          product: item.product,
+          quantity: item.quantity,
+          selectedColor: item.selectedColor || '',
+          selectedSize: item.selectedSize || '',
+          itemTotal
+        };
+      });
 
     res.status(200).json({
       success: true,
@@ -176,19 +178,21 @@ const updateCartItem = async (req, res) => {
     let subtotal = 0;
     let totalItems = 0;
 
-    const cartItems = updatedUser.cart.map((item) => {
-      const itemTotal = (item.product.price || 0) * item.quantity;
-      subtotal += itemTotal;
-      totalItems += item.quantity;
-      return {
-        _id: item._id,
-        product: item.product,
-        quantity: item.quantity,
-        selectedColor: item.selectedColor || '',
-        selectedSize: item.selectedSize || '',
-        itemTotal
-      };
-    });
+    const cartItems = updatedUser.cart
+      .filter(item => item.product) // Filter out items with deleted products
+      .map((item) => {
+        const itemTotal = (item.product.price || 0) * item.quantity;
+        subtotal += itemTotal;
+        totalItems += item.quantity;
+        return {
+          _id: item._id,
+          product: item.product,
+          quantity: item.quantity,
+          selectedColor: item.selectedColor || '',
+          selectedSize: item.selectedSize || '',
+          itemTotal
+        };
+      });
 
     res.status(200).json({
       success: true,
@@ -235,19 +239,21 @@ const removeFromCart = async (req, res) => {
     let subtotal = 0;
     let totalItems = 0;
 
-    const cartItems = updatedUser.cart.map((item) => {
-      const itemTotal = (item.product.price || 0) * item.quantity;
-      subtotal += itemTotal;
-      totalItems += item.quantity;
-      return {
-        _id: item._id,
-        product: item.product,
-        quantity: item.quantity,
-        selectedColor: item.selectedColor || '',
-        selectedSize: item.selectedSize || '',
-        itemTotal
-      };
-    });
+    const cartItems = updatedUser.cart
+      .filter(item => item.product) // Filter out items with deleted products
+      .map((item) => {
+        const itemTotal = (item.product.price || 0) * item.quantity;
+        subtotal += itemTotal;
+        totalItems += item.quantity;
+        return {
+          _id: item._id,
+          product: item.product,
+          quantity: item.quantity,
+          selectedColor: item.selectedColor || '',
+          selectedSize: item.selectedSize || '',
+          itemTotal
+        };
+      });
 
     res.status(200).json({
       success: true,

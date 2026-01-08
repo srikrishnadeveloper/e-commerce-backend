@@ -55,30 +55,13 @@ const productSchema = new Schema({
     }] // Array of image URLs for this color variant
   }],
   
-  // Size options with individual pricing (for size-specific pricing)
+  // Size options with prices
   sizes: [{
-    type: String,
-    required: true
-  }],
-  
-  // Size variants with pricing - more detailed size options
-  sizeVariants: [{
-    size: {
+    name: {
       type: String,
       required: true
     },
     price: {
-      type: Number,
-      required: true
-    },
-    originalPrice: {
-      type: Number
-    },
-    inStock: {
-      type: Boolean,
-      default: true
-    },
-    stockQuantity: {
       type: Number,
       default: 0
     }
@@ -124,21 +107,11 @@ const productSchema = new Schema({
     default: 0
   },
   
-  // Product features
-  features: [{
-    type: String
-  }],
-  
   // Technical specifications
   specifications: {
     type: Schema.Types.Mixed,
     default: {}
   },
-  
-  // Tags for search and filtering
-  tags: [{
-    type: String
-  }],
   
   // Product Variants - for size/color combinations with separate stock
   variants: [{

@@ -6,8 +6,12 @@ const {
   getCustomerAnalytics,
   getProductAnalytics
 } = require('../controllers/analyticsController');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 const router = express.Router();
+
+// All routes require admin authentication
+router.use(protectAdmin);
 
 // Dashboard metrics - real-time KPIs
 router.get('/dashboard', getDashboardMetrics);

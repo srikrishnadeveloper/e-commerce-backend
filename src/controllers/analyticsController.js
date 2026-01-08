@@ -85,8 +85,7 @@ const getRevenueAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: start, $lte: end },
-          status: { $ne: 'cancelled' },
-          paymentStatus: 'paid'
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {
@@ -109,8 +108,7 @@ const getRevenueAnalytics = async (req, res) => {
       {
         $match: {
           createdAt: { $gte: start, $lte: end },
-          status: { $ne: 'cancelled' },
-          paymentStatus: 'paid'
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {

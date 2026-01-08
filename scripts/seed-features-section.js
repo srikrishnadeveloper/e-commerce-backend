@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 const SiteConfig = require('../src/models/SiteConfig');
+require('dotenv').config({ path: './config.env' });
 
 // MongoDB connection
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb://localhost:27017/ecommerce', {
+    await mongoose.connect(process.env.DATABASE || 'mongodb://localhost:28000/ecommerce', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -22,22 +23,28 @@ const featuresData = {
   enabled: true,
   features: [
     {
-      icon: '🚚',
+      icon: 'Truck',
       title: 'Fast & Free Shipping',
       description: 'Get your orders delivered swiftly with free shipping on select items.',
-      image: 'IMAGE_11.png'
+      image: ''
     },
     {
-      icon: '🎧',
+      icon: 'Headphones',
       title: '24/7 Customer Support',
       description: 'We are here to help you anytime, anywhere.',
-      image: 'IMAGE_11.png'
+      image: ''
     },
     {
-      icon: '🔄',
+      icon: 'RotateCcw',
       title: 'Easy Returns',
       description: 'Hassle-free returns within 30 days of purchase.',
-      image: 'IMAGE_11.png'
+      image: ''
+    },
+    {
+      icon: 'ShieldCheck',
+      title: 'Secure Payments',
+      description: 'All transactions are protected using industry-grade security standards.',
+      image: ''
     }
   ]
 };

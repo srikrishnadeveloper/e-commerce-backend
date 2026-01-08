@@ -70,7 +70,8 @@ const updatePaymentSettings = async (req, res) => {
       };
     }
     
-    settings.updatedBy = req.user.id;
+    // Use req.admin (from protectAdmin middleware) instead of req.user
+    settings.updatedBy = req.admin?._id || req.admin?.id || null;
     await settings.save();
     
     res.status(200).json({
@@ -103,7 +104,8 @@ const uploadQRCode = async (req, res) => {
     
     let settings = await PaymentSettings.getSettings();
     settings.upiSettings.qrCodeImage = qrCodeImage;
-    settings.updatedBy = req.user.id;
+    // Use req.admin (from protectAdmin middleware) instead of req.user
+    settings.updatedBy = req.admin?._id || req.admin?.id || null;
     await settings.save();
     
     res.status(200).json({

@@ -100,8 +100,7 @@ class AnalyticsService {
       {
         $match: {
           createdAt: { $gte: startDate, $lte: endDate },
-          status: { $ne: 'cancelled' },
-          paymentStatus: 'paid'
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {
@@ -135,8 +134,7 @@ class AnalyticsService {
       {
         $match: {
           createdAt: { $gte: prevStartDate, $lte: prevEndDate },
-          status: { $ne: 'cancelled' },
-          paymentStatus: 'paid'
+          status: { $nin: ['cancelled', 'refunded'] }
         }
       },
       {

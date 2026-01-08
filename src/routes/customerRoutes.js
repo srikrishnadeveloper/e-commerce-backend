@@ -9,8 +9,12 @@ const {
   getCustomerSuggestions,
   exportCustomers
 } = require('../controllers/customerController');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 const router = express.Router();
+
+// All routes require admin authentication
+router.use(protectAdmin);
 
 // @route   GET /api/admin/customers/analytics/overview
 // @desc    Get customer analytics overview

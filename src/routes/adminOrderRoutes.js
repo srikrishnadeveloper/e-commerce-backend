@@ -13,8 +13,12 @@ const {
   processRefund,
   getRefundStats
 } = require('../controllers/adminOrderController');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 const router = express.Router();
+
+// All routes require admin authentication
+router.use(protectAdmin);
 
 // @route   GET /api/admin/orders/analytics/overview
 // @desc    Get order analytics overview

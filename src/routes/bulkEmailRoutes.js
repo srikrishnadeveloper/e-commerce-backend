@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const bulkEmailController = require('../controllers/bulkEmailController');
-const { protect, restrictTo } = require('../middleware/auth');
+const { protectAdmin } = require('../middleware/adminAuth');
 
 // All routes require admin authentication
-router.use(protect);
-router.use(restrictTo('admin'));
+router.use(protectAdmin);
 
 // Get available email templates
 router.get('/templates', bulkEmailController.getTemplates);

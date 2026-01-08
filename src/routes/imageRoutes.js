@@ -15,6 +15,7 @@ router.post('/upload', upload.array('images', 10), uploadImages);
 // Route: DELETE /api/images/:filename
 // @desc    Delete an image from the images directory
 // @access  Public (for admin interface)
-router.delete('/:filename', deleteImage);
+// Using wildcard (*) to capture paths with subdirectories like "subdir/filename.png"
+router.delete('/*', deleteImage);
 
 module.exports = router;
